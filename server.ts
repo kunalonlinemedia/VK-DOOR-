@@ -84,40 +84,6 @@ async function startServer() {
     }
   });
 
-  // API Route: get Storage & ImgBB config
-  app.get("/api/storage-config", (req, res) => {
-    try {
-      const configFile = path.join(process.cwd(), "storage-config.json");
-      if (fs.existsSync(configFile)) {
-        const configStr = fs.readFileSync(configFile, "utf-8");
-        const config = JSON.parse(configStr);
-        return res.json({ configured: !!config.imgbbApiKey, config });
-      }
-      return res.json({ configured: false, config: { imgbbApiKey: "" } });
-    } catch (error) {
-      console.error("Failed to read storage config:", error);
-      res.json({ configured: false, config: { imgbbApiKey: "" } });
-    }
-  });
-
-  // API Route: save Storage & ImgBB config
-  app.post("/api/storage-config", (req, res) => {
-    try {
-      const { imgbbApiKey } = req.body;
-      const configData = {
-        imgbbApiKey: imgbbApiKey ? imgbbApiKey.trim() : ""
-      };
-
-      const configFile = path.join(process.cwd(), "storage-config.json");
-      fs.writeFileSync(configFile, JSON.stringify(configData, null, 2), "utf-8");
-
-      res.json({ success: true, config: configData });
-    } catch (error) {
-      console.error("Failed to save storage config:", error);
-      res.status(500).json({ error: "Failed to write storage configuration." });
-    }
-  });
-
   // API Route: save or update lookbook item
   app.post("/api/lookbook-items", async (req, res) => {
     try {
@@ -126,102 +92,12 @@ async function startServer() {
         return res.status(400).json({ error: "Missing lookbook item ID" });
       }
 
-      let processedImage = customImage;
-
-      // Handle raw base64 image decoding and saving
-      if (customImage && customImage.startsWith("data:image/")) {
-        let uploadedUrl = "";
-        
-        // 1. Try ImgBB if configured in storage-config.json
-        try {
-          const configFile = path.join(process.cwd(), "storage-config.json");
-          let imgbbApiKey = "";
-          if (fs.existsSync(configFile)) {
-            const config = JSON.parse(fs.readFileSync(configFile, "utf-8"));
-            imgbbApiKey = config.imgbbApiKey || "";
-          }
-          const apiKey = imgbbApiKey || process.env.IMGBB_API_KEY;
-          if (apiKey) {
-            const base64Clean = customImage.replace(/^data:image\/\w+;base64,/, "");
-            const formData = new URLSearchParams();
-            formData.append("image", base64Clean);
-
-            const uploadRes = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
-              method: "POST",
-              body: formData,
-              headers: {
-                "Content-Type": "application/x-www-form-urlencoded"
-              }
-            });
-            if (uploadRes.ok) {
-              const uploadData: any = await uploadRes.json();
-              if (uploadData && uploadData.success && uploadData.data && uploadData.data.url) {
-                uploadedUrl = uploadData.data.url;
-                console.log("Saved dynamically via ImgBB Free Cloud:", uploadedUrl);
-              }
-            } else {
-              const errText = await uploadRes.text();
-              console.error("ImgBB upload error response, falling back locally:", errText);
-            }
-          }
-        } catch (err) {
-          console.error("ImgBB Cloud save warning, using internal server fallback:", err);
-        }
-
-        // 2. Fallback to Local Server file writing if ImgBB upload not configured or failed
-        if (!uploadedUrl) {
-          try {
-            const base64Clean = customImage.replace(/^data:image\/\w+;base64,/, "");
-            const buffer = Buffer.from(base64Clean, "base64");
-            const fileName = `door-${id}-${Date.now()}.jpg`;
-            const filePath = path.join(UPLOADS_DIR, fileName);
-
-            // Clean up old local physical files for this exact ID to save disk space
-            try {
-              if (fs.existsSync(UPLOADS_DIR)) {
-                const oldFiles = fs.readdirSync(UPLOADS_DIR);
-                for (const oldFile of oldFiles) {
-                  if (oldFile.startsWith(`door-${id}-`)) {
-                    fs.unlinkSync(path.join(UPLOADS_DIR, oldFile));
-                  }
-                }
-              }
-            } catch (cleanupErr) {
-              console.error("Cleanup of old door file warning:", cleanupErr);
-            }
-
-            fs.writeFileSync(filePath, buffer);
-            uploadedUrl = `/uploads/${fileName}`;
-            console.log("Saved base64 image locally on server storage:", uploadedUrl);
-          } catch (writeErr) {
-            console.error("Failed to save image file locally on disk:", writeErr);
-            uploadedUrl = customImage; // Absolute raw fallback to stay operational
-          }
-        }
-
-        processedImage = uploadedUrl;
-      } else if (!customImage) {
-        // If image is being deleted/removed, delete local physical files for this ID too
-        try {
-          if (fs.existsSync(UPLOADS_DIR)) {
-            const oldFiles = fs.readdirSync(UPLOADS_DIR);
-            for (const oldFile of oldFiles) {
-              if (oldFile.startsWith(`door-${id}-`)) {
-                fs.unlinkSync(path.join(UPLOADS_DIR, oldFile));
-              }
-            }
-          }
-        } catch (cleanupErr) {
-          console.error("Failed to delete local physical file during removal:", cleanupErr);
-        }
-      }
-
       const items = loadLookbookItems();
       let updated: LookbookItem[];
       const exists = items.some(item => item.id === id);
 
       if (exists) {
-        if (!processedImage && id > 20) {
+        if (!customImage && id > 20) {
           // Remove dynamic item entirely from the list if the image has been deleted/reset
           updated = items.filter(item => item.id !== id);
         } else {
@@ -229,10 +105,10 @@ async function startServer() {
           updated = items.map(item => {
             if (item.id === id) {
               const updatedItem = { ...item };
-              if (!processedImage) {
+              if (!customImage) {
                 delete updatedItem.customImage;
               } else {
-                updatedItem.customImage = processedImage;
+                updatedItem.customImage = customImage;
               }
               return updatedItem;
             }
@@ -240,13 +116,13 @@ async function startServer() {
           });
         }
       } else {
-        if (processedImage) {
+        if (customImage) {
           const newItem: LookbookItem = {
             id: id,
             title: `Bespoke Premium Design VK ${100 + id}`,
             category: `Custom Entrance`,
             woodType: `Selected Natural Hardwood`,
-            customImage: processedImage
+            customImage: customImage
           };
           updated = [...items, newItem];
         } else {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface LookbookItem {
@@ -78,35 +78,12 @@ export default function Lookbook() {
     };
   }, [selectedItem, showPinModal]);
 
-  const [storageStatus, setStorageStatus] = useState<'idle' | 'checking' | 'connected' | 'disconnected'>('idle');
-  const [showStorageConfigForm, setShowStorageConfigForm] = useState<boolean>(false);
-  const [storageSettings, setStorageSettings] = useState({
-    imgbbApiKey: "",
-  });
+  const [showUrlModal, setShowUrlModal] = useState<boolean>(false);
+  const [editingItemId, setEditingItemId] = useState<number | null>(null);
+  const [inputImageUrl, setInputImageUrl] = useState<string>("");
 
-  // Load fresh items from server database / ImgBB config on mount
+  // Load fresh items from server database on mount
   useEffect(() => {
-    setStorageStatus('checking');
-    
-    // 1. Fetch backend Storage & ImgBB configuration status
-    fetch("/api/storage-config")
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.configured && data.config) {
-          setStorageSettings({
-            imgbbApiKey: data.config.imgbbApiKey || ""
-          });
-          setStorageStatus('connected'); // ImgBB cloud connected
-        } else {
-          setStorageStatus('disconnected'); // Using 100% Free Local Server Storage
-        }
-      })
-      .catch((e) => {
-        console.warn("Storage settings check skipped:", e);
-        setStorageStatus('disconnected');
-      });
-
-    // 2. Load lookbook items from server
     fetch("/api/lookbook-items")
       .then((res) => {
         if (!res.ok) throw new Error("Failed to load backend items");
@@ -128,8 +105,6 @@ export default function Lookbook() {
   }, []);
 
   const [uploadFeedback, setUploadFeedback] = useState<string>("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [activeUploadId, setActiveUploadId] = useState<number | null>(null);
 
   const handleVerifyPin = () => {
     if (pinInput === "2005") {
@@ -146,39 +121,14 @@ export default function Lookbook() {
     }
   };
 
-  const saveStorageConfigToServer = async (e: FormEvent) => {
-    e.preventDefault();
-    setUploadFeedback("Configuring free storage parameters...");
-    try {
-      const response = await fetch("/api/storage-config", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(storageSettings)
-      });
-      if (!response.ok) {
-        throw new Error("Failed to save storage config on server");
-      }
-      const data = await response.json();
-      if (data.success) {
-        setUploadFeedback(data.config.imgbbApiKey ? "🚀 ImgBB Free Cloud Storage connected!" : "📁 Using Free Local Server storage!");
-        setStorageStatus(data.config.imgbbApiKey ? 'connected' : 'disconnected');
-        setShowStorageConfigForm(false);
-      }
-    } catch (err: any) {
-      console.error(err);
-      setUploadFeedback("⚠️ Failed to write configurations. Try again.");
-    }
-    setTimeout(() => setUploadFeedback(""), 4000);
-  };
-
-  // Save base64 state helper syncing with fullstack server API and cloud/local uploads
-  const saveCustomPhoto = async (id: number, base64Data: string | null) => {
+  // Save base64/URL state helper syncing with fullstack server API
+  const saveCustomPhoto = async (id: number, imgUrl: string | null) => {
     // 1. Maintain photos record in sync for generic backward-compatibility fallback
     try {
       const savedPhotosStr = localStorage.getItem('vk_door_lookbook_photos_v2') || "{}";
       const savedPhotos = JSON.parse(savedPhotosStr) as Record<number, string>;
-      if (base64Data) {
-        savedPhotos[id] = base64Data;
+      if (imgUrl) {
+        savedPhotos[id] = imgUrl;
       } else {
         delete savedPhotos[id];
       }
@@ -187,15 +137,15 @@ export default function Lookbook() {
       console.error("Failed to clean up lookup photo cache", e);
     }
 
-    // 2. Transmit changes to server-side directory database & ImgBB / Local storage
-    setUploadFeedback("Syncing design with server directory...");
+    // 2. Transmit changes to server-side directory database
+    setUploadFeedback("Syncing design with server database...");
     try {
       const response = await fetch("/api/lookbook-items", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ id, customImage: base64Data }),
+        body: JSON.stringify({ id, customImage: imgUrl }),
       });
       if (!response.ok) {
         throw new Error("API request failed");
@@ -208,92 +158,29 @@ export default function Lookbook() {
         } catch (e) {
           console.error(e);
         }
-
-        // Figure out if the image got mapped to ImgBB or dynamic file link by finding the item
-        const updatedItem = data.items.find((i: LookbookItem) => i.id === id);
-        if (updatedItem && updatedItem.customImage) {
-          if (updatedItem.customImage.includes("ibb.co")) {
-            setUploadFeedback("🚀 Saved permanently in ImgBB Free Cloud!");
-          } else {
-            setUploadFeedback("📁 Saved in Free Local Server directory!");
-          }
-        } else {
-          setUploadFeedback("🗑️ Photo removed successfully!");
-        }
+        setUploadFeedback(imgUrl ? "🚀 New Design Link saved successfully!" : "🗑️ Design reset successfully!");
       }
     } catch (e) {
-      console.error("Server local filesystem synchronization warning:", e);
-      setUploadFeedback("⚠️ Upload failed. Check server/network connection.");
+      console.error("Server local filesystem synchronization failure:", e);
+      setUploadFeedback("⚠️ Server error. Could not save URL link.");
     }
     setTimeout(() => setUploadFeedback(""), 4000);
   };
 
-  // HTML5 Canvas dynamic compression routine to fit 20 images comfortably in 5MB LocalStorage limit
-  const handleImageFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || activeUploadId === null) return;
-
-    if (!file.type.startsWith('image/')) {
-      alert("Please select a valid image file.");
-      return;
-    }
-
-    setUploadFeedback("Squeezing & optimizing photograph...");
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const originalBase64 = event.target?.result as string;
-      
-      // Let's optimize using canvas
-      const img = new Image();
-      img.src = originalBase64;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        
-        // Downscale to max 720px width/height while keeping aspect ratio
-        const maxDim = 720;
-        if (width > height) {
-          if (width > maxDim) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          }
-        } else {
-          if (height > maxDim) {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-        }
-        
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          // Compress high-quality JPEG at 0.62 quality ratio (typically ~25KB to ~45KB only)
-          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.62);
-          saveCustomPhoto(activeUploadId, compressedBase64);
-          setUploadFeedback("✨ Design updated successfully!");
-          setTimeout(() => setUploadFeedback(""), 2000);
-        } else {
-          // Fallback to uncompressed if canvas context fails
-          saveCustomPhoto(activeUploadId, originalBase64);
-          setUploadFeedback("Design updated!");
-          setTimeout(() => setUploadFeedback(""), 2000);
-        }
-      };
-    };
-    reader.readAsDataURL(file);
-    
-    // Clear input to allow uploading same file again
-    e.target.value = '';
+  const openUrlModal = (id: number) => {
+    const item = items.find(i => i.id === id);
+    setEditingItemId(id);
+    setInputImageUrl(item?.customImage || "");
+    setShowUrlModal(true);
   };
 
-  const triggerUploadInput = (id: number) => {
-    setActiveUploadId(id);
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
+  const handleSaveImageUrl = (e: FormEvent) => {
+    e.preventDefault();
+    if (editingItemId === null) return;
+    saveCustomPhoto(editingItemId, inputImageUrl.trim() || null);
+    setShowUrlModal(false);
+    setEditingItemId(null);
+    setInputImageUrl("");
   };
 
   const handleResetImage = (id: number) => {
@@ -423,15 +310,6 @@ export default function Lookbook() {
 
   return (
     <div className="space-y-12 pb-16">
-      
-      {/* 20 Image Upload Controller Input (Hidden) */}
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        onChange={handleImageFileChange} 
-        accept="image/*" 
-        className="hidden" 
-      />
 
       {/* HEADER SECTION - WRITING EXCLUSIVELY ABOUT LUXURIOUS WOODEN DOORS */}
       <div className="relative text-center max-w-4xl mx-auto py-8 sm:py-12 px-4 sm:px-6 space-y-6">
@@ -491,7 +369,7 @@ export default function Lookbook() {
               <p className="font-normal leading-relaxed text-center sm:text-left">
                 {uploadFeedback 
                   ? uploadFeedback 
-                  : "💡 ADMIN ACTIVE: Tap 'Upload Picture' on any card to update it with your actual door photo. Changes save instantly!"}
+                  : "💡 ADMIN ACTIVE: Tap 'Set Image Link' on any card to update it with your actual door photo URL. Changes save instantly!"}
               </p>
             </div>
             {isAdminMode && (
@@ -502,109 +380,6 @@ export default function Lookbook() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* 100% FREE STORAGE SYSTEM & API CONFIGURATION PANEL (ONLY SHOWN FOR ADMINS) */}
-      {isAdminMode && (
-        <div className="bg-stone-50 border border-stone-200/80 rounded-3xl p-6 sm:p-8 space-y-6 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-200 pb-5">
-            <div className="space-y-1">
-              <h2 className="text-lg font-serif tracking-tight text-stone-900 flex items-center gap-2">
-                <span className="text-emerald-600">📁</span>
-                <span>100% Free Image Storage System (ImgBB Cloud / Server)</span>
-              </h2>
-              <p className="text-xs text-stone-500 font-sans">
-                Apne door designs ke photos ko life-time free store karein bina kisi credit card ya Firebase charge ke!
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5 bg-white border border-stone-200 py-1.5 px-3.5 rounded-full shadow-2xs">
-                <span className={`h-2 w-2 rounded-full ${
-                  storageStatus === 'connected' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400 animate-pulse'
-                }`} />
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-600">
-                  {storageStatus === 'connected' ? 'ImgBB Free Cloud Active' : 'Free Server Disk Active'}
-                </span>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowStorageConfigForm(!showStorageConfigForm)}
-                className="py-1.5 px-4 rounded-full bg-stone-900 hover:bg-stone-800 text-white text-[10px] font-sans font-extrabold tracking-wider uppercase transition-all shadow-md shrink-0 cursor-pointer"
-              >
-                {showStorageConfigForm ? "Hide Configuration" : "Storage Setup"}
-              </button>
-            </div>
-          </div>
-
-          {/* STORAGE OPTIONS GUIDE & KEY FORM */}
-          {showStorageConfigForm && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-1">
-              
-              {/* BILINGUAL GUIDE - LEFT SIDE */}
-              <div className="lg:col-span-6 space-y-4 bg-white/60 rounded-2xl p-4.5 border border-stone-200/65 text-xs text-stone-700 leading-relaxed font-sans">
-                <h3 className="font-bold text-stone-900 uppercase tracking-wider text-[11px] mb-2 font-mono flex items-center gap-1.5">
-                  <span>✨</span> <span>Free Photo Storage Options (Hindi/English Guide)</span>
-                </h3>
-                
-                <div className="space-y-4 text-[11px]">
-                  <div className="p-3 bg-stone-100 rounded-xl space-y-1">
-                    <strong className="text-stone-900 font-bold flex items-center gap-1">
-                      <span>📁</span> Option A: Built-in Server Storage (100% Free & Auto)
-                    </strong>
-                    <p className="text-stone-600 font-sans">
-                      Aapko kuch bhi config karne ki jarurat nahi hai! Uploaded doors automatic humare free local server disk storage (<code>/uploads</code>) me save hote hain.
-                    </p>
-                  </div>
-
-                  <div className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl space-y-1">
-                    <strong className="text-stone-900 font-bold flex items-center gap-1 text-emerald-800">
-                      <span>🚀</span> Option B: ImgBB Permanent Free Cloud (Highly Recommended)
-                    </strong>
-                    <p className="text-stone-600 font-sans">
-                      Server restart hone par local files remove ho sakti hain. Permanent clouds ke liye, 100% Free Cloud option use krein:
-                    </p>
-                    <ol className="list-decimal pl-4 pt-1 space-y-1 text-stone-600">
-                      <li>Sabhse pehle <a href="https://imgbb.com/" target="_blank" rel="noopener noreferrer" className="text-stone-900 font-bold underline hover:text-emerald-700">ImgBB.com</a> par free account register krein.</li>
-                      <li>Fir <a href="https://api.imgbb.com/" target="_blank" rel="noopener noreferrer" className="text-stone-900 font-bold underline hover:text-emerald-700">api.imgbb.com</a> par jaakar 1 Click me apni <strong>Free API Key</strong> generate krein.</li>
-                      <li>Apni API key ko right side waale form me paste karke connect krein! Koi credit card ya paid rules ki need nahi hai.</li>
-                    </ol>
-                  </div>
-                </div>
-              </div>
-
-              {/* API KEY CONFIGURATION FORM - RIGHT SIDE */}
-              <form onSubmit={saveStorageConfigToServer} className="lg:col-span-6 space-y-5 font-sans text-xs">
-                <div className="space-y-2">
-                  <label className="block text-[10px] font-bold text-stone-600 uppercase tracking-widest">
-                    ImgBB Cloud API Key (Optional)
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="E.g., 7d84b2ac69165..."
-                    className="w-full text-xs p-3.5 rounded-xl border border-stone-300 bg-white placeholder-stone-400 focus:outline-none focus:border-stone-900 font-mono shadow-inner"
-                    value={storageSettings.imgbbApiKey}
-                    onChange={(e) => setStorageSettings({ imgbbApiKey: e.target.value })}
-                  />
-                  <p className="text-[10px] text-stone-500 font-sans">
-                    Agar blank chhodenge, toh system auto-fallback karke aapke local server ke storage <code>/uploads</code> directory me doors image ko free host karega.
-                  </p>
-                </div>
-
-                <div className="flex justify-end pt-2">
-                  <button
-                    type="submit"
-                    className="w-full sm:w-auto py-3 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-sans font-extrabold tracking-wider uppercase text-[11px] shadow-lg shadow-emerald-600/15 cursor-pointer flex items-center justify-center space-x-2"
-                  >
-                    <i className="fa-solid fa-floppy-disk" />
-                    <span>Save & Use Free Storage</span>
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* 20 CARD DESIGN GRID (RESPONSIVE: Strictly 2 columns on mobile, fluid scalable grid) */}
       <div className="space-y-4">
@@ -663,16 +438,16 @@ export default function Lookbook() {
                 
                 {/* Admin Quick Action Button Overlay when Edit Mode is active */}
                 {isAdminMode && (
-                  <div className="absolute inset-0 bg-stone-900/60 backdrop-blur-xs flex flex-col items-center justify-center p-4 space-y-3 transition-opacity">
+                  <div className="absolute inset-0 bg-stone-900/60 backdrop-blur-xs flex flex-col items-center justify-center p-4 space-y-3 transition-opacity animate-fade-in">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        triggerUploadInput(item.id);
+                        openUrlModal(item.id);
                       }}
                       className="w-full max-w-[130px] py-2 bg-amber-500 hover:bg-amber-400 active:scale-95 text-stone-950 text-[10px] font-bold uppercase rounded-lg tracking-wider text-center cursor-pointer flex items-center justify-center space-x-1"
                     >
-                      <i className="fa-solid fa-upload" />
-                      <span>Upload Picture</span>
+                      <i className="fa-solid fa-link" />
+                      <span>Set Image Link</span>
                     </button>
 
                     {item.customImage && (
@@ -697,7 +472,7 @@ export default function Lookbook() {
                   VK {100 + item.id}
                 </h3>
 
-                <div className="flex justify-center">
+                <div className="flex justify-center flex-wrap gap-2">
                   <a
                     href={generateWhatsAppLink(item)}
                     target="_blank"
@@ -724,7 +499,7 @@ export default function Lookbook() {
               >
                 <div 
                   className="w-full flex-1 flex flex-col items-center justify-center p-6 text-center select-none cursor-pointer"
-                  onClick={() => triggerUploadInput(nextId)}
+                  onClick={() => openUrlModal(nextId)}
                 >
                   <div className="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mb-3">
                     <i className="fa-solid fa-plus text-lg" />
@@ -735,17 +510,17 @@ export default function Lookbook() {
                   </h3>
                   
                   <p className="text-[10px] text-stone-400 mt-1.5 max-w-[150px] leading-normal font-normal">
-                    Click to upload a photograph and publish this door pattern live
+                    Click to paste a direct image URL link and publish this door pattern live
                   </p>
                 </div>
 
                 <div className="p-3.5 text-center bg-stone-100/40 border-t border-stone-200/50 flex justify-center">
                   <button
-                    onClick={() => triggerUploadInput(nextId)}
+                    onClick={() => openUrlModal(nextId)}
                     className="inline-flex items-center space-x-1 px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 rounded-full text-[10px] font-bold tracking-wider uppercase transition-all active:scale-95 cursor-pointer shadow-sm"
                   >
-                    <i className="fa-solid fa-upload" />
-                    <span>Upload</span>
+                    <i className="fa-solid fa-link" />
+                    <span>Set Link</span>
                   </button>
                 </div>
               </motion.div>
@@ -820,6 +595,74 @@ export default function Lookbook() {
                   Verify
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* DIRECT IMAGE LINK INPUT MODAL */}
+      <AnimatePresence>
+        {showUrlModal && editingItemId !== null && (
+          <div className="fixed inset-0 bg-stone-950/80 backdrop-blur-md z-[10000] flex items-center justify-center p-4" onClick={() => { setShowUrlModal(false); setEditingItemId(null); }}>
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white border border-stone-200 rounded-[2rem] p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-6 text-left"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center">
+                <i className="fa-solid fa-link text-lg" />
+              </div>
+              
+              <div className="space-y-1.5">
+                <h3 className="font-bricolage text-xl font-black text-stone-900 uppercase">
+                  VK {100 + editingItemId} Image Link
+                </h3>
+                <p className="text-xs text-stone-500 font-sans leading-relaxed">
+                  Apne is design ke liye direct Photo Link (URL) enter karein. Pinterest, Imgur, Postimages, ya kisi bhi platform se direct link copy karke yahan paste karein.
+                </p>
+              </div>
+
+              <form onSubmit={handleSaveImageUrl} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-extrabold text-stone-600 uppercase tracking-widest font-mono">
+                    Direct Image URL Link
+                  </label>
+                  <input
+                    type="url"
+                    required
+                    placeholder="https://i.ibb.co/example/door.jpg"
+                    className="w-full text-xs p-3.5 rounded-xl border border-stone-300 bg-white placeholder-stone-400 focus:outline-none focus:border-stone-900 font-mono shadow-inner"
+                    value={inputImageUrl}
+                    onChange={(e) => setInputImageUrl(e.target.value)}
+                    autoFocus
+                  />
+                  <p className="text-[10px] text-stone-500">
+                    Example: <code>https://images.unsplash.com/...</code> or any link ending in <code>.jpg</code>, <code>.png</code>, or <code>.webp</code>.
+                  </p>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowUrlModal(false);
+                      setEditingItemId(null);
+                      setInputImageUrl("");
+                    }}
+                    className="flex-1 py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold uppercase rounded-xl tracking-wider cursor-pointer font-sans"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase rounded-xl tracking-wider cursor-pointer shadow-md font-sans"
+                  >
+                    Save Link
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, ChangeEvent } from 'react';
+import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface LookbookItem {
@@ -78,8 +78,35 @@ export default function Lookbook() {
     };
   }, [selectedItem, showPinModal]);
 
-  // Load fresh items from server database on mount
+  const [storageStatus, setStorageStatus] = useState<'idle' | 'checking' | 'connected' | 'disconnected'>('idle');
+  const [showStorageConfigForm, setShowStorageConfigForm] = useState<boolean>(false);
+  const [storageSettings, setStorageSettings] = useState({
+    imgbbApiKey: "",
+  });
+
+  // Load fresh items from server database / ImgBB config on mount
   useEffect(() => {
+    setStorageStatus('checking');
+    
+    // 1. Fetch backend Storage & ImgBB configuration status
+    fetch("/api/storage-config")
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.configured && data.config) {
+          setStorageSettings({
+            imgbbApiKey: data.config.imgbbApiKey || ""
+          });
+          setStorageStatus('connected'); // ImgBB cloud connected
+        } else {
+          setStorageStatus('disconnected'); // Using 100% Free Local Server Storage
+        }
+      })
+      .catch((e) => {
+        console.warn("Storage settings check skipped:", e);
+        setStorageStatus('disconnected');
+      });
+
+    // 2. Load lookbook items from server
     fetch("/api/lookbook-items")
       .then((res) => {
         if (!res.ok) throw new Error("Failed to load backend items");
@@ -119,7 +146,32 @@ export default function Lookbook() {
     }
   };
 
-  // Save base64 state helper syncing with fullstack server API
+  const saveStorageConfigToServer = async (e: FormEvent) => {
+    e.preventDefault();
+    setUploadFeedback("Configuring free storage parameters...");
+    try {
+      const response = await fetch("/api/storage-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(storageSettings)
+      });
+      if (!response.ok) {
+        throw new Error("Failed to save storage config on server");
+      }
+      const data = await response.json();
+      if (data.success) {
+        setUploadFeedback(data.config.imgbbApiKey ? "🚀 ImgBB Free Cloud Storage connected!" : "📁 Using Free Local Server storage!");
+        setStorageStatus(data.config.imgbbApiKey ? 'connected' : 'disconnected');
+        setShowStorageConfigForm(false);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setUploadFeedback("⚠️ Failed to write configurations. Try again.");
+    }
+    setTimeout(() => setUploadFeedback(""), 4000);
+  };
+
+  // Save base64 state helper syncing with fullstack server API and cloud/local uploads
   const saveCustomPhoto = async (id: number, base64Data: string | null) => {
     // 1. Maintain photos record in sync for generic backward-compatibility fallback
     try {
@@ -135,52 +187,8 @@ export default function Lookbook() {
       console.error("Failed to clean up lookup photo cache", e);
     }
 
-    // 2. Optimistically update local UI state and client-side cache
-    setItems((prev) => {
-      let updated: LookbookItem[];
-      const exists = prev.some(item => item.id === id);
-      
-      if (exists) {
-        if (base64Data === null && id > 20) {
-          updated = prev.filter(item => item.id !== id);
-        } else {
-          updated = prev.map((item) => {
-            if (item.id === id) {
-              const updatedItem = { ...item };
-              if (base64Data === null) {
-                delete updatedItem.customImage;
-              } else {
-                updatedItem.customImage = base64Data;
-              }
-              return updatedItem;
-            }
-            return item;
-          });
-        }
-      } else {
-        if (base64Data === null) {
-          updated = prev;
-        } else {
-          const newItem: LookbookItem = {
-            id: id,
-            title: `Bespoke Premium Design VK ${100 + id}`,
-            category: `Custom Entrance`,
-            woodType: `Selected Natural Hardwood`,
-            customImage: base64Data
-          };
-          updated = [...prev, newItem];
-        }
-      }
-      
-      try {
-        localStorage.setItem('vk_door_lookbook_items_v3', JSON.stringify(updated));
-      } catch (cacheError) {
-        console.error("Local storage error:", cacheError);
-      }
-      return updated;
-    });
-
-    // 3. Transmit changes to server-side filesystem database
+    // 2. Transmit changes to server-side directory database & ImgBB / Local storage
+    setUploadFeedback("Syncing design with server directory...");
     try {
       const response = await fetch("/api/lookbook-items", {
         method: "POST",
@@ -200,12 +208,24 @@ export default function Lookbook() {
         } catch (e) {
           console.error(e);
         }
+
+        // Figure out if the image got mapped to ImgBB or dynamic file link by finding the item
+        const updatedItem = data.items.find((i: LookbookItem) => i.id === id);
+        if (updatedItem && updatedItem.customImage) {
+          if (updatedItem.customImage.includes("ibb.co")) {
+            setUploadFeedback("🚀 Saved permanently in ImgBB Free Cloud!");
+          } else {
+            setUploadFeedback("📁 Saved in Free Local Server directory!");
+          }
+        } else {
+          setUploadFeedback("🗑️ Photo removed successfully!");
+        }
       }
     } catch (e) {
-      console.error("Server synchronization failed, image remains stored in local offline cache:", e);
-      setUploadFeedback("⚠️ Image saved locally, but backend sync failed.");
-      setTimeout(() => setUploadFeedback(""), 4000);
+      console.error("Server local filesystem synchronization warning:", e);
+      setUploadFeedback("⚠️ Upload failed. Check server/network connection.");
     }
+    setTimeout(() => setUploadFeedback(""), 4000);
   };
 
   // HTML5 Canvas dynamic compression routine to fit 20 images comfortably in 5MB LocalStorage limit
@@ -482,6 +502,109 @@ export default function Lookbook() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 100% FREE STORAGE SYSTEM & API CONFIGURATION PANEL (ONLY SHOWN FOR ADMINS) */}
+      {isAdminMode && (
+        <div className="bg-stone-50 border border-stone-200/80 rounded-3xl p-6 sm:p-8 space-y-6 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-200 pb-5">
+            <div className="space-y-1">
+              <h2 className="text-lg font-serif tracking-tight text-stone-900 flex items-center gap-2">
+                <span className="text-emerald-600">📁</span>
+                <span>100% Free Image Storage System (ImgBB Cloud / Server)</span>
+              </h2>
+              <p className="text-xs text-stone-500 font-sans">
+                Apne door designs ke photos ko life-time free store karein bina kisi credit card ya Firebase charge ke!
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5 bg-white border border-stone-200 py-1.5 px-3.5 rounded-full shadow-2xs">
+                <span className={`h-2 w-2 rounded-full ${
+                  storageStatus === 'connected' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400 animate-pulse'
+                }`} />
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-stone-600">
+                  {storageStatus === 'connected' ? 'ImgBB Free Cloud Active' : 'Free Server Disk Active'}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowStorageConfigForm(!showStorageConfigForm)}
+                className="py-1.5 px-4 rounded-full bg-stone-900 hover:bg-stone-800 text-white text-[10px] font-sans font-extrabold tracking-wider uppercase transition-all shadow-md shrink-0 cursor-pointer"
+              >
+                {showStorageConfigForm ? "Hide Configuration" : "Storage Setup"}
+              </button>
+            </div>
+          </div>
+
+          {/* STORAGE OPTIONS GUIDE & KEY FORM */}
+          {showStorageConfigForm && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-1">
+              
+              {/* BILINGUAL GUIDE - LEFT SIDE */}
+              <div className="lg:col-span-6 space-y-4 bg-white/60 rounded-2xl p-4.5 border border-stone-200/65 text-xs text-stone-700 leading-relaxed font-sans">
+                <h3 className="font-bold text-stone-900 uppercase tracking-wider text-[11px] mb-2 font-mono flex items-center gap-1.5">
+                  <span>✨</span> <span>Free Photo Storage Options (Hindi/English Guide)</span>
+                </h3>
+                
+                <div className="space-y-4 text-[11px]">
+                  <div className="p-3 bg-stone-100 rounded-xl space-y-1">
+                    <strong className="text-stone-900 font-bold flex items-center gap-1">
+                      <span>📁</span> Option A: Built-in Server Storage (100% Free & Auto)
+                    </strong>
+                    <p className="text-stone-600 font-sans">
+                      Aapko kuch bhi config karne ki jarurat nahi hai! Uploaded doors automatic humare free local server disk storage (<code>/uploads</code>) me save hote hain.
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-emerald-50/50 border border-emerald-100 rounded-xl space-y-1">
+                    <strong className="text-stone-900 font-bold flex items-center gap-1 text-emerald-800">
+                      <span>🚀</span> Option B: ImgBB Permanent Free Cloud (Highly Recommended)
+                    </strong>
+                    <p className="text-stone-600 font-sans">
+                      Server restart hone par local files remove ho sakti hain. Permanent clouds ke liye, 100% Free Cloud option use krein:
+                    </p>
+                    <ol className="list-decimal pl-4 pt-1 space-y-1 text-stone-600">
+                      <li>Sabhse pehle <a href="https://imgbb.com/" target="_blank" rel="noopener noreferrer" className="text-stone-900 font-bold underline hover:text-emerald-700">ImgBB.com</a> par free account register krein.</li>
+                      <li>Fir <a href="https://api.imgbb.com/" target="_blank" rel="noopener noreferrer" className="text-stone-900 font-bold underline hover:text-emerald-700">api.imgbb.com</a> par jaakar 1 Click me apni <strong>Free API Key</strong> generate krein.</li>
+                      <li>Apni API key ko right side waale form me paste karke connect krein! Koi credit card ya paid rules ki need nahi hai.</li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+
+              {/* API KEY CONFIGURATION FORM - RIGHT SIDE */}
+              <form onSubmit={saveStorageConfigToServer} className="lg:col-span-6 space-y-5 font-sans text-xs">
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-bold text-stone-600 uppercase tracking-widest">
+                    ImgBB Cloud API Key (Optional)
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="E.g., 7d84b2ac69165..."
+                    className="w-full text-xs p-3.5 rounded-xl border border-stone-300 bg-white placeholder-stone-400 focus:outline-none focus:border-stone-900 font-mono shadow-inner"
+                    value={storageSettings.imgbbApiKey}
+                    onChange={(e) => setStorageSettings({ imgbbApiKey: e.target.value })}
+                  />
+                  <p className="text-[10px] text-stone-500 font-sans">
+                    Agar blank chhodenge, toh system auto-fallback karke aapke local server ke storage <code>/uploads</code> directory me doors image ko free host karega.
+                  </p>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="submit"
+                    className="w-full sm:w-auto py-3 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-sans font-extrabold tracking-wider uppercase text-[11px] shadow-lg shadow-emerald-600/15 cursor-pointer flex items-center justify-center space-x-2"
+                  >
+                    <i className="fa-solid fa-floppy-disk" />
+                    <span>Save & Use Free Storage</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 20 CARD DESIGN GRID (RESPONSIVE: Strictly 2 columns on mobile, fluid scalable grid) */}
       <div className="space-y-4">

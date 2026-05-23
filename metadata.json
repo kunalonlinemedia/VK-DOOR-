@@ -1,6 +1,6 @@
 {
   "name": "VK Door",
-  "description": "Premium Wooden Doors, Windows & Mouldings website showcase",
+  "description": "Premium Wooden Doors, Windows, Frames & Mouldings website showcase",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -368,7 +368,7 @@ export default function Home() {
           {/* Card 1 (Doors) */}
           <div className="bg-white rounded-[2rem] border border-brand-border/50 p-8 md:p-10 space-y-6 hover:shadow-lg transition-shadow">
             <div className="w-12 h-12 rounded-2xl bg-brand-light flex items-center justify-center text-brand-wood shadow-inner">
-              <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+              <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                 <rect x="5" y="3" width="14" height="18" rx="1" />
                 <rect x="7" y="5" width="4" height="6" rx="0.5" />
                 <rect x="13" y="5" width="4" height="6" rx="0.5" />
@@ -386,7 +386,7 @@ export default function Home() {
           {/* Card 2 (Windows) */}
           <div className="bg-white rounded-[2rem] border border-brand-border/50 p-8 md:p-10 space-y-6 hover:shadow-lg transition-shadow">
             <div className="w-12 h-12 rounded-2xl bg-brand-light flex items-center justify-center text-brand-wood shadow-inner">
-              <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+              <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                 <rect x="4" y="4" width="16" height="16" rx="1" />
                 <line x1="12" y1="4" x2="12" y2="20" />
                 <line x1="4" y1="12" x2="20" y2="12" />
@@ -405,7 +405,7 @@ export default function Home() {
           {/* Card 3 (Mouldings) */}
           <div className="bg-white rounded-[2rem] border border-brand-border/50 p-8 md:p-10 space-y-6 hover:shadow-lg transition-shadow">
             <div className="w-12 h-12 rounded-2xl bg-brand-light flex items-center justify-center text-brand-wood shadow-inner">
-              <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+              <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                 <path d="M4 20h16M6 17h12M8 14h8M10 11h4" strokeLinecap="round" />
                 <path d="M4 4h16v16H4V4z" opacity="0.25" />
                 <path d="M6 6h12v14H6V6z" opacity="0.5" />
@@ -413,8 +413,8 @@ export default function Home() {
               </svg>
             </div>
             <div className="space-y-2">
-              <h3 className="text-xl font-bold text-brand-dark">Mouldings & Chaukhats</h3>
-              <p className="text-sm text-stone-500 leading-relaxed font-normal">High-precision framing chaukhats, designer panel architraves, skirtings, and decorative trim profiles.</p>
+              <h3 className="text-xl font-bold text-brand-dark">Frames, Mouldings & Chaukhats</h3>
+              <p className="text-sm text-stone-500 leading-relaxed font-normal">High-precision door/window framing chaukhats, modern designer architraves, skirtings, and decorative trim profiles.</p>
             </div>
           </div>
         </div>
@@ -460,7 +460,7 @@ export default function Home() {
           <div className="bg-stone-50/50 hover:bg-white rounded-2xl border border-brand-border/40 p-6 space-y-4 hover:shadow-md transition-all duration-300 flex flex-col justify-between">
             <div className="space-y-4">
               <div className="w-10 h-10 rounded-xl bg-brand-light flex items-center justify-center text-brand-wood shadow-inner">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
                 </svg>
               </div>
@@ -473,7 +473,7 @@ export default function Home() {
           <div className="bg-stone-50/50 hover:bg-white rounded-2xl border border-brand-border/40 p-6 space-y-4 hover:shadow-md transition-all duration-300 flex flex-col justify-between">
             <div className="space-y-4">
               <div className="w-10 h-10 rounded-xl bg-brand-light flex items-center justify-center text-brand-wood shadow-inner">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
                 </svg>
               </div>
@@ -486,7 +486,7 @@ export default function Home() {
           <div className="bg-stone-50/50 hover:bg-white rounded-2xl border border-brand-border/40 p-6 space-y-4 hover:shadow-md transition-all duration-300 flex flex-col justify-between">
             <div className="space-y-4">
               <div className="w-10 h-10 rounded-xl bg-brand-light flex items-center justify-center text-brand-wood shadow-inner">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                   <circle cx="12" cy="12" r="9" />
                   <circle cx="12" cy="12" r="6" strokeDasharray="2 2" />
                   <circle cx="12" cy="12" r="3" />
@@ -501,7 +501,7 @@ export default function Home() {
           <div className="bg-stone-50/50 hover:bg-white rounded-2xl border border-brand-border/40 p-6 space-y-4 hover:shadow-md transition-all duration-300 flex flex-col justify-between">
             <div className="space-y-4">
               <div className="w-10 h-10 rounded-xl bg-brand-light flex items-center justify-center text-brand-wood shadow-inner">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.75a1.125 1.125 0 01-1.125-1.125V11.25m9 7.5V11.25M7.5 11.25H16.5M12 3v3" />
                 </svg>
               </div>

@@ -46,7 +46,27 @@ export default function App() {
     };
     window.addEventListener('keydown', preventKeyActions);
 
-    // 3. Swipe gesture detection (for returning to home or going back)
+    // 3. Prevent text copy event
+    const preventCopy = (e: ClipboardEvent) => {
+      e.preventDefault();
+    };
+    document.addEventListener('copy', preventCopy);
+
+    // 4. Prevent text selection start
+    const preventSelectStart = (e: Event) => {
+      e.preventDefault();
+    };
+    document.addEventListener('selectstart', preventSelectStart);
+
+    // 5. Prevent dragging of images to prevent downloads
+    const preventDragStart = (e: DragEvent) => {
+      if (e.target && (e.target as HTMLElement).tagName === 'IMG') {
+        e.preventDefault();
+      }
+    };
+    document.addEventListener('dragstart', preventDragStart);
+
+    // 6. Swipe gesture detection (for returning to home or going back)
     let touchStartX = 0;
     let touchEndX = 0;
 
@@ -78,6 +98,9 @@ export default function App() {
     return () => {
       document.removeEventListener('contextmenu', preventContextMenu);
       window.removeEventListener('keydown', preventKeyActions);
+      document.removeEventListener('copy', preventCopy);
+      document.removeEventListener('selectstart', preventSelectStart);
+      document.removeEventListener('dragstart', preventDragStart);
       document.removeEventListener('touchstart', handleTouchStart);
       document.removeEventListener('touchend', handleTouchEnd);
     };

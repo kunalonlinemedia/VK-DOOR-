@@ -361,6 +361,10 @@ export default function About() {
             <span>Windows</span>
           </div>
           <div className="px-5 py-2.5 rounded-full border border-stone-200 bg-white flex items-center space-x-2 text-stone-700 text-xs font-bold hover:border-brand-gold transition-colors">
+            <i className="fa-solid fa-border-all text-black" />
+            <span>Chaukhats & Frames</span>
+          </div>
+          <div className="px-5 py-2.5 rounded-full border border-stone-200 bg-white flex items-center space-x-2 text-stone-700 text-xs font-bold hover:border-brand-gold transition-colors">
             <i className="fa-solid fa-door-closed text-black" />
             <span>Plywood Doors</span>
           </div>

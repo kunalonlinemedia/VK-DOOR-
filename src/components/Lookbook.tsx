@@ -78,6 +78,28 @@ export default function Lookbook() {
     };
   }, [selectedItem, showPinModal]);
 
+  // Load fresh items from server database on mount
+  useEffect(() => {
+    fetch("/api/lookbook-items")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load backend items");
+        return res.json();
+      })
+      .then((data: LookbookItem[]) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setItems(data);
+          try {
+            localStorage.setItem('vk_door_lookbook_items_v3', JSON.stringify(data));
+          } catch (storageError) {
+            console.error("Failed to cache server items:", storageError);
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn("Using offline storage cache for lookbook:", err);
+      });
+  }, []);
+
   const [uploadFeedback, setUploadFeedback] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeUploadId, setActiveUploadId] = useState<number | null>(null);
@@ -97,60 +119,91 @@ export default function Lookbook() {
     }
   };
 
-  // Save base64 state helper
-  const saveCustomPhoto = (id: number, base64Data: string | null) => {
+  // Save base64 state helper syncing with fullstack server API
+  const saveCustomPhoto = async (id: number, base64Data: string | null) => {
+    // 1. Maintain photos record in sync for generic backward-compatibility fallback
     try {
-      // 1. Keep photos record in sync for generic fallback
       const savedPhotosStr = localStorage.getItem('vk_door_lookbook_photos_v2') || "{}";
       const savedPhotos = JSON.parse(savedPhotosStr) as Record<number, string>;
-      
       if (base64Data) {
         savedPhotos[id] = base64Data;
       } else {
         delete savedPhotos[id];
       }
       localStorage.setItem('vk_door_lookbook_photos_v2', JSON.stringify(savedPhotos));
-      
-      // 2. Manage item existence and persistence inside local array items
-      setItems((prev) => {
-        let updated: LookbookItem[];
-        const exists = prev.some(item => item.id === id);
-        
-        if (exists) {
-          if (base64Data === null && id > 20) {
-            // Remove dynamically added items from list on delete reset
-            updated = prev.filter(item => item.id !== id);
-          } else {
-            // Simply update the image
-            updated = prev.map((item) => {
-              if (item.id === id) {
-                return { ...item, customImage: base64Data || undefined };
-              }
-              return item;
-            });
-          }
-        } else {
-          // Dynamic items (id > 20)
-          if (base64Data === null) {
-            updated = prev;
-          } else {
-            const newItem: LookbookItem = {
-              id: id,
-              title: `Bespoke Premium Design VK ${100 + id}`,
-              category: `Custom Entrance`,
-              woodType: `Selected Natural Hardwood`,
-              customImage: base64Data
-            };
-            updated = [...prev, newItem];
-          }
-        }
-        
-        localStorage.setItem('vk_door_lookbook_items_v3', JSON.stringify(updated));
-        return updated;
-      });
     } catch (e) {
-      console.error("Storage error:", e);
-      setUploadFeedback("Memory limit exceeded! Try a smaller image file.");
+      console.error("Failed to clean up lookup photo cache", e);
+    }
+
+    // 2. Optimistically update local UI state and client-side cache
+    setItems((prev) => {
+      let updated: LookbookItem[];
+      const exists = prev.some(item => item.id === id);
+      
+      if (exists) {
+        if (base64Data === null && id > 20) {
+          updated = prev.filter(item => item.id !== id);
+        } else {
+          updated = prev.map((item) => {
+            if (item.id === id) {
+              const updatedItem = { ...item };
+              if (base64Data === null) {
+                delete updatedItem.customImage;
+              } else {
+                updatedItem.customImage = base64Data;
+              }
+              return updatedItem;
+            }
+            return item;
+          });
+        }
+      } else {
+        if (base64Data === null) {
+          updated = prev;
+        } else {
+          const newItem: LookbookItem = {
+            id: id,
+            title: `Bespoke Premium Design VK ${100 + id}`,
+            category: `Custom Entrance`,
+            woodType: `Selected Natural Hardwood`,
+            customImage: base64Data
+          };
+          updated = [...prev, newItem];
+        }
+      }
+      
+      try {
+        localStorage.setItem('vk_door_lookbook_items_v3', JSON.stringify(updated));
+      } catch (cacheError) {
+        console.error("Local storage error:", cacheError);
+      }
+      return updated;
+    });
+
+    // 3. Transmit changes to server-side filesystem database
+    try {
+      const response = await fetch("/api/lookbook-items", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id, customImage: base64Data }),
+      });
+      if (!response.ok) {
+        throw new Error("API request failed");
+      }
+      const data = await response.json();
+      if (data.success && Array.isArray(data.items)) {
+        setItems(data.items);
+        try {
+          localStorage.setItem('vk_door_lookbook_items_v3', JSON.stringify(data.items));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    } catch (e) {
+      console.error("Server synchronization failed, image remains stored in local offline cache:", e);
+      setUploadFeedback("⚠️ Image saved locally, but backend sync failed.");
       setTimeout(() => setUploadFeedback(""), 4000);
     }
   };

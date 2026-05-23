@@ -33,13 +33,42 @@ const PRESET_DESIGNS: LookbookItem[] = [
 ];
 
 export default function Lookbook() {
-  const [items, setItems] = useState<LookbookItem[]>(PRESET_DESIGNS);
+  const [items, setItems] = useState<LookbookItem[]>(() => {
+    let baseItems = [...PRESET_DESIGNS];
+    try {
+      const savedItemsStr = localStorage.getItem('vk_door_lookbook_items_v3');
+      if (savedItemsStr) {
+        return JSON.parse(savedItemsStr) as LookbookItem[];
+      }
+      
+      // Backward compatibility: Merge legacy photos from older key into the preset list
+      const savedPhotosStr = localStorage.getItem('vk_door_lookbook_photos_v2');
+      if (savedPhotosStr) {
+        const savedPhotos = JSON.parse(savedPhotosStr) as Record<number, string>;
+        baseItems = baseItems.map(item => {
+          if (savedPhotos[item.id]) {
+            return { ...item, customImage: savedPhotos[item.id] };
+          }
+          return item;
+        });
+      }
+    } catch (e) {
+      console.error("Could not parse dynamic lookbook items, loading presets", e);
+    }
+    return baseItems;
+  });
+
   const [selectedItem, setSelectedItem] = useState<LookbookItem | null>(null);
   const [isAdminMode, setIsAdminMode] = useState<boolean>(false);
+  
+  // PIN Verification system states
+  const [showPinModal, setShowPinModal] = useState<boolean>(false);
+  const [pinInput, setPinInput] = useState<string>("");
+  const [pinError, setPinError] = useState<string>("");
 
-  // Lock body scroll when full-screen modal is open to prevent background scrolling (and the footer behind showing)
+  // Lock body scroll when full-screen modal or PIN verification modal is open
   useEffect(() => {
-    if (selectedItem) {
+    if (selectedItem || showPinModal) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
@@ -47,34 +76,31 @@ export default function Lookbook() {
     return () => {
       document.body.style.overflow = '';
     };
-  }, [selectedItem]);
+  }, [selectedItem, showPinModal]);
+
   const [uploadFeedback, setUploadFeedback] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeUploadId, setActiveUploadId] = useState<number | null>(null);
 
-  // Load custom photos from localStorage
-  useEffect(() => {
-    try {
-      const savedPhotosStr = localStorage.getItem('vk_door_lookbook_photos_v2');
-      if (savedPhotosStr) {
-        const savedPhotos = JSON.parse(savedPhotosStr) as Record<number, string>;
-        setItems((prev) =>
-          prev.map((item) => {
-            if (savedPhotos[item.id]) {
-              return { ...item, customImage: savedPhotos[item.id] };
-            }
-            return item;
-          })
-        );
-      }
-    } catch (e) {
-      console.error("Failed to load catalog images from localStorage", e);
+  const handleVerifyPin = () => {
+    if (pinInput === "2005") {
+      setIsAdminMode(true);
+      setShowPinModal(false);
+      setPinInput("");
+      setPinError("");
+      setUploadFeedback("🔓 Access granted: Admin system started!");
+      setTimeout(() => setUploadFeedback(""), 3000);
+    } else if (pinInput.length === 0) {
+      setPinError("Please enter the security PIN.");
+    } else {
+      setPinError("Invalid security PIN. Please try again.");
     }
-  }, []);
+  };
 
   // Save base64 state helper
   const saveCustomPhoto = (id: number, base64Data: string | null) => {
     try {
+      // 1. Keep photos record in sync for generic fallback
       const savedPhotosStr = localStorage.getItem('vk_door_lookbook_photos_v2') || "{}";
       const savedPhotos = JSON.parse(savedPhotosStr) as Record<number, string>;
       
@@ -83,21 +109,49 @@ export default function Lookbook() {
       } else {
         delete savedPhotos[id];
       }
-      
       localStorage.setItem('vk_door_lookbook_photos_v2', JSON.stringify(savedPhotos));
       
-      setItems((prev) =>
-        prev.map((item) => {
-          if (item.id === id) {
-            return { ...item, customImage: base64Data || undefined };
+      // 2. Manage item existence and persistence inside local array items
+      setItems((prev) => {
+        let updated: LookbookItem[];
+        const exists = prev.some(item => item.id === id);
+        
+        if (exists) {
+          if (base64Data === null && id > 20) {
+            // Remove dynamically added items from list on delete reset
+            updated = prev.filter(item => item.id !== id);
+          } else {
+            // Simply update the image
+            updated = prev.map((item) => {
+              if (item.id === id) {
+                return { ...item, customImage: base64Data || undefined };
+              }
+              return item;
+            });
           }
-          return item;
-        })
-      );
+        } else {
+          // Dynamic items (id > 20)
+          if (base64Data === null) {
+            updated = prev;
+          } else {
+            const newItem: LookbookItem = {
+              id: id,
+              title: `Bespoke Premium Design VK ${100 + id}`,
+              category: `Custom Entrance`,
+              woodType: `Selected Natural Hardwood`,
+              customImage: base64Data
+            };
+            updated = [...prev, newItem];
+          }
+        }
+        
+        localStorage.setItem('vk_door_lookbook_items_v3', JSON.stringify(updated));
+        return updated;
+      });
     } catch (e) {
       console.error("Storage error:", e);
       setUploadFeedback("Memory limit exceeded! Try a smaller image file.");
-      setTimeout(() => setUploadFeedback(""), 3000);
+      setTimeout(() => setUploadFeedback(""), 4000);
     }
   };
 
@@ -325,7 +379,17 @@ export default function Lookbook() {
         {/* Studio Admin Controls floating switch but visually subtle */}
         <div className="flex justify-center pt-2">
           <button
-            onClick={() => setIsAdminMode(!isAdminMode)}
+            onClick={() => {
+              if (isAdminMode) {
+                setIsAdminMode(false);
+                setUploadFeedback("Administrative edit mode deactivated.");
+                setTimeout(() => setUploadFeedback(""), 2000);
+              } else {
+                setPinInput("");
+                setPinError("");
+                setShowPinModal(true);
+              }
+            }}
             className={`px-4 py-2 rounded-full border text-[10px] font-extrabold tracking-wider transition-all uppercase flex items-center space-x-2 cursor-pointer ${
               isAdminMode 
                 ? 'bg-amber-500 border-amber-400 text-stone-950 shadow-md shadow-amber-500/15' 
@@ -333,7 +397,7 @@ export default function Lookbook() {
             }`}
           >
             <i className={`fa-solid ${isAdminMode ? 'fa-pen-nib' : 'fa-sliders'}`} />
-            <span>{isAdminMode ? "Disable Edit Mode" : "Manage Images (20 Slots)"}</span>
+            <span>{isAdminMode ? "Disable Edit Mode" : "Manage Images (Admin Required)"}</span>
           </button>
         </div>
       </div>
@@ -401,7 +465,7 @@ export default function Lookbook() {
               >
                 {item.customImage ? (
                   <img
-                    src={item.customImage}
+                     src={item.customImage}
                     alt={item.title}
                     referrerPolicy="no-referrer"
                     className="w-full h-auto block select-none pointer-events-none transition-transform duration-500 group-hover:scale-103 bg-transparent"
@@ -471,8 +535,119 @@ export default function Lookbook() {
               </div>
             </motion.div>
           ))}
+
+          {/* DYNAMIC SEQUENTIAL PLACEHOLDER CARD: Instantiates Next ID seamlessly in Admin Mode */}
+          {isAdminMode && (() => {
+            const nextId = items.length > 0 ? Math.max(...items.map(i => i.id)) + 1 : 21;
+            return (
+              <motion.div
+                layoutId={`card-container-placeholder-${nextId}`}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-stone-50/50 rounded-3xl border-2 border-dashed border-stone-300 overflow-hidden flex flex-col justify-between h-full hover:border-amber-500 hover:bg-stone-50 transition-all duration-300 min-h-[320px]"
+              >
+                <div 
+                  className="w-full flex-1 flex flex-col items-center justify-center p-6 text-center select-none cursor-pointer"
+                  onClick={() => triggerUploadInput(nextId)}
+                >
+                  <div className="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mb-3">
+                    <i className="fa-solid fa-plus text-lg" />
+                  </div>
+                  
+                  <h3 className="font-bricolage text-sm sm:text-base font-extrabold text-stone-600 tracking-wide">
+                    VK {100 + nextId} Placeholder
+                  </h3>
+                  
+                  <p className="text-[10px] text-stone-400 mt-1.5 max-w-[150px] leading-normal font-normal">
+                    Click to upload a photograph and publish this door pattern live
+                  </p>
+                </div>
+
+                <div className="p-3.5 text-center bg-stone-100/40 border-t border-stone-200/50 flex justify-center">
+                  <button
+                    onClick={() => triggerUploadInput(nextId)}
+                    className="inline-flex items-center space-x-1 px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 rounded-full text-[10px] font-bold tracking-wider uppercase transition-all active:scale-95 cursor-pointer shadow-sm"
+                  >
+                    <i className="fa-solid fa-upload" />
+                    <span>Upload</span>
+                  </button>
+                </div>
+              </motion.div>
+            );
+          })()}
         </div>
       </div>
+
+      {/* SECURE ADMIN PIN VERIFICATION MODAL */}
+      <AnimatePresence>
+        {showPinModal && (
+          <div className="fixed inset-0 bg-stone-950/80 backdrop-blur-md z-[10000] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white border border-stone-200 rounded-[2rem] p-6 sm:p-8 max-w-sm w-full shadow-2xl space-y-6 text-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto">
+                <i className="fa-solid fa-shield-halved text-lg" />
+              </div>
+              
+              <div className="space-y-1.5">
+                <h3 className="font-bricolage text-xl font-black text-stone-900 uppercase">Admin Required</h3>
+                <p className="text-xs text-stone-500 font-bricolage leading-normal font-normal px-2">
+                  Enter the 4-digit verification code to access the administrative image upload system.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <input
+                  type="password"
+                  maxLength={4}
+                  value={pinInput}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    setPinInput(val);
+                    setPinError("");
+                  }}
+                  placeholder="••••"
+                  className="w-32 mx-auto text-center tracking-[0.8em] font-serif text-3xl font-bold py-2 border-b-2 border-stone-300 focus:border-amber-500 outline-none text-stone-900 bg-transparent placeholder-stone-300 transition-colors"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleVerifyPin();
+                    }
+                  }}
+                />
+                {pinError && (
+                  <p className="text-[11px] text-red-600 font-bold font-bricolage">
+                    {pinError}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => {
+                    setShowPinModal(false);
+                    setPinInput("");
+                    setPinError("");
+                  }}
+                  className="flex-1 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold uppercase rounded-xl tracking-wider cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleVerifyPin}
+                  className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-bold uppercase rounded-xl tracking-wider cursor-pointer shadow-md shadow-amber-500/10"
+                >
+                  Verify
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* PREMIUM MINIMAL FULL SCREEN MODAL VIEW (SHOWS THE IMAGE FULL HEIGHT AND REDESIGNED COMPACT WHATSAPP BUTTON WITH WATERMARK) */}
       <AnimatePresence>

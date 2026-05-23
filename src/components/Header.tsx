@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 
 interface HeaderProps {
-  currentPage: 'home' | 'about' | 'contact';
-  setPage: (page: 'home' | 'about' | 'contact') => void;
+  currentPage: 'home' | 'about' | 'contact' | 'lookbook';
+  setPage: (page: 'home' | 'about' | 'contact' | 'lookbook') => void;
   onNavigateAnchor: (anchorId: string) => void;
 }
 
@@ -54,6 +54,16 @@ export default function Header({ currentPage, setPage, onNavigateAnchor }: Heade
             }`}
           >
             Home
+          </button>
+          <button 
+            onClick={() => { setPage('lookbook'); setMenuOpen(false); }}
+            className={`w-full text-left font-bricolage text-xs font-semibold py-2.5 px-4 rounded-xl border border-brand-border/20 transition-all active:scale-[0.98] ${
+              currentPage === 'lookbook' 
+                ? 'bg-brand-dark text-white border-brand-dark shadow-sm' 
+                : 'bg-stone-50 hover:bg-stone-100/80 text-brand-dark'
+            }`}
+          >
+            Design Lookbook & Gallery
           </button>
           <button 
             onClick={() => { setPage('about'); setMenuOpen(false); }}
@@ -138,6 +148,17 @@ export default function Header({ currentPage, setPage, onNavigateAnchor }: Heade
           </button>
           
           <span className="h-4 w-[1px] bg-stone-200" />
+
+          <button 
+            onClick={() => setPage('lookbook')}
+            className={`transition-all rounded-full px-3.5 py-1.5 border text-[11px] font-bold ${
+              currentPage === 'lookbook'
+                ? 'bg-brand-dark text-white border-brand-dark'
+                : 'border-amber-500/30 text-amber-600 hover:bg-amber-500/5 hover:border-amber-500/50'
+            }`}
+          >
+            ⭐ Design Gallery
+          </button>
           
           <button 
             onClick={() => setPage('about')}

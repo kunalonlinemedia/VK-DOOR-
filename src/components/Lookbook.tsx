@@ -1,0 +1,551 @@
+import { useState, useEffect, useRef, ChangeEvent } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+
+interface LookbookItem {
+  id: number;
+  title: string;
+  category: string;
+  woodType: string;
+  customImage?: string; // Base64 data URL
+}
+
+const PRESET_DESIGNS: LookbookItem[] = [
+  { id: 1, title: "Teakwood Royal Arch Entrance", category: "Double Entrance", woodType: "Premium CP Teak Wood" },
+  { id: 2, title: "Classic CNC Grooved Panel", category: "Single Main", woodType: "Ivory Hardwood" },
+  { id: 3, title: "Double-Leaf Colonial Grand", category: "Double Entrance", woodType: "Himalayan Cedar" },
+  { id: 4, title: "Modern Minimalist Horizontal Slate", category: "Interior Luxury", woodType: "African Wenge Veneer" },
+  { id: 5, title: "Artisanal Carved Peacock Grandeur", category: "Religious & Royal", woodType: "Desi Sagwan Teak" },
+  { id: 6, title: "Veneer Flush Minimal Panel", category: "Bedroom Single", woodType: "Burma Teak Veneer" },
+  { id: 7, title: "Heavy Duty Sheesham Chaukhat", category: "Frame Included", woodType: "Indian Rosewood (Sheesham)" },
+  { id: 8, title: "Retro Glass-Framed French Entry", category: "Single Patio", woodType: "White Ashwood" },
+  { id: 9, title: "Exquisite Designer Brass Pivot", category: "Modern Pivot", woodType: "Golden Walnut Wood" },
+  { id: 10, title: "Standard Hardwood Flush Door", category: "Heavy Duty Core", woodType: "Engineered Red Meranti" },
+  { id: 11, title: "Contemporary Geometrical Slices", category: "Art Deco", woodType: "American Cherrywood" },
+  { id: 12, title: "Crafted Solid Wood Villa Maindoor", category: "Villa Special", woodType: "Select CP Teak" },
+  { id: 13, title: "Traditional Indian Temple Entrance", category: "Religious & Royal", woodType: "Sacred Sandalwood & Teak" },
+  { id: 14, title: "Industrial Pivot Reinforced Panels", category: "Modern Pivot", woodType: "Smoked Oakwood" },
+  { id: 15, title: "Acoustic Noise-Reduction Panel", category: "Interior Luxury", woodType: "Multi-layered Walnut" },
+  { id: 16, title: "Diamond Cut Solid Block Panel", category: "Single Main", woodType: "Sudan Mahogany" },
+  { id: 17, title: "Classic Architraved Bedroom Suite", category: "Bedroom Single", woodType: "Maple Cherry Wood" },
+  { id: 18, title: "Rustic Antique Sliding Barnway", category: "Sliding Panel", woodType: "Reclaimed Pine & Spruce" },
+  { id: 19, title: "Art Deco Arch Modernist Passage", category: "Single Main", woodType: "Santos Rosewood" },
+  { id: 20, title: "Luxurious Gold-Inlay Teak Panel", category: "Double Entrance", woodType: "Elite Burma Teak" }
+];
+
+export default function Lookbook() {
+  const [items, setItems] = useState<LookbookItem[]>(PRESET_DESIGNS);
+  const [selectedItem, setSelectedItem] = useState<LookbookItem | null>(null);
+  const [isAdminMode, setIsAdminMode] = useState<boolean>(false);
+
+  // Lock body scroll when full-screen modal is open to prevent background scrolling (and the footer behind showing)
+  useEffect(() => {
+    if (selectedItem) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [selectedItem]);
+  const [uploadFeedback, setUploadFeedback] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [activeUploadId, setActiveUploadId] = useState<number | null>(null);
+
+  // Load custom photos from localStorage
+  useEffect(() => {
+    try {
+      const savedPhotosStr = localStorage.getItem('vk_door_lookbook_photos_v2');
+      if (savedPhotosStr) {
+        const savedPhotos = JSON.parse(savedPhotosStr) as Record<number, string>;
+        setItems((prev) =>
+          prev.map((item) => {
+            if (savedPhotos[item.id]) {
+              return { ...item, customImage: savedPhotos[item.id] };
+            }
+            return item;
+          })
+        );
+      }
+    } catch (e) {
+      console.error("Failed to load catalog images from localStorage", e);
+    }
+  }, []);
+
+  // Save base64 state helper
+  const saveCustomPhoto = (id: number, base64Data: string | null) => {
+    try {
+      const savedPhotosStr = localStorage.getItem('vk_door_lookbook_photos_v2') || "{}";
+      const savedPhotos = JSON.parse(savedPhotosStr) as Record<number, string>;
+      
+      if (base64Data) {
+        savedPhotos[id] = base64Data;
+      } else {
+        delete savedPhotos[id];
+      }
+      
+      localStorage.setItem('vk_door_lookbook_photos_v2', JSON.stringify(savedPhotos));
+      
+      setItems((prev) =>
+        prev.map((item) => {
+          if (item.id === id) {
+            return { ...item, customImage: base64Data || undefined };
+          }
+          return item;
+        })
+      );
+    } catch (e) {
+      console.error("Storage error:", e);
+      setUploadFeedback("Memory limit exceeded! Try a smaller image file.");
+      setTimeout(() => setUploadFeedback(""), 3000);
+    }
+  };
+
+  // HTML5 Canvas dynamic compression routine to fit 20 images comfortably in 5MB LocalStorage limit
+  const handleImageFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || activeUploadId === null) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert("Please select a valid image file.");
+      return;
+    }
+
+    setUploadFeedback("Squeezing & optimizing photograph...");
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const originalBase64 = event.target?.result as string;
+      
+      // Let's optimize using canvas
+      const img = new Image();
+      img.src = originalBase64;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        // Downscale to max 720px width/height while keeping aspect ratio
+        const maxDim = 720;
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          // Compress high-quality JPEG at 0.62 quality ratio (typically ~25KB to ~45KB only)
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.62);
+          saveCustomPhoto(activeUploadId, compressedBase64);
+          setUploadFeedback("✨ Design updated successfully!");
+          setTimeout(() => setUploadFeedback(""), 2000);
+        } else {
+          // Fallback to uncompressed if canvas context fails
+          saveCustomPhoto(activeUploadId, originalBase64);
+          setUploadFeedback("Design updated!");
+          setTimeout(() => setUploadFeedback(""), 2000);
+        }
+      };
+    };
+    reader.readAsDataURL(file);
+    
+    // Clear input to allow uploading same file again
+    e.target.value = '';
+  };
+
+  const triggerUploadInput = (id: number) => {
+    setActiveUploadId(id);
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleResetImage = (id: number) => {
+    if (window.confirm("Are you sure you want to reset this design card back to the default architectural preview?")) {
+      saveCustomPhoto(id, null);
+      setUploadFeedback("Restored back to default.");
+      setTimeout(() => setUploadFeedback(""), 2000);
+    }
+  };
+
+  // Helper code to render stunning default design fallback SVGs
+  const renderFallbackSVG = (item: LookbookItem) => {
+    let woodBgColor = "#8B5A2B"; // Warm medium brown default
+    let lineAccent = "#5C3A21";
+    let paneColor1 = "#A0522D";
+    let paneColor2 = "#CD853F";
+
+    switch ((item.id % 5)) {
+      case 0: // Mahogany style
+        woodBgColor = "#662d1b";
+        lineAccent = "#3d1308";
+        paneColor1 = "#7c3821";
+        paneColor2 = "#944429";
+        break;
+      case 1: //CP Royal Teak style
+        woodBgColor = "#a36e3b";
+        lineAccent = "#633c16";
+        paneColor1 = "#c4884d";
+        paneColor2 = "#d99d5f";
+        break;
+      case 2: // Walnut / Smoked Oak
+        woodBgColor = "#44342d";
+        lineAccent = "#211612";
+        paneColor1 = "#5e4b42";
+        paneColor2 = "#786156";
+        break;
+      case 3: // Rosewood
+        woodBgColor = "#772b2c";
+        lineAccent = "#4a1215";
+        paneColor1 = "#8c3b3c";
+        paneColor2 = "#a84e50";
+        break;
+      case 4: // Pine / Cedar
+        woodBgColor = "#c29567";
+        lineAccent = "#8c6035";
+        paneColor1 = "#d9ad7e";
+        paneColor2 = "#ebbfa0";
+        break;
+    }
+
+    return (
+      <svg className="w-full h-full object-cover transition-transform duration-500 hover:scale-105" viewBox="0 0 400 550" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* Dynamic Abstract Wood Grain Background Mock */}
+        <rect width="400" height="550" fill={woodBgColor} />
+        
+        {/* Vertical Grain Lines */}
+        <path d="M40 0 C 60 120, 30 300, 50 550" stroke={lineAccent} strokeWidth="1" strokeLinecap="round" opacity="0.35" />
+        <path d="M120 0 C 100 180, 140 380, 110 550" stroke={lineAccent} strokeWidth="1" strokeLinecap="round" opacity="0.25" />
+        <path d="M220 0 C 240 100, 200 290, 230 550" stroke={lineAccent} strokeWidth="1.2" strokeLinecap="round" opacity="0.4" />
+        <path d="M300 0 C 280 200, 310 400, 290 550" stroke={lineAccent} strokeWidth="1" strokeLinecap="round" opacity="0.3" />
+        <path d="M370 0 C 390 150, 350 350, 380 550" stroke={lineAccent} strokeWidth="1" strokeLinecap="round" opacity="0.35" />
+
+        {/* Chaukhat Frame Outlining */}
+        <rect x="25" y="25" width="350" height="500" rx="2" stroke={lineAccent} strokeWidth="14" fill="none" opacity="0.9" />
+        <rect x="36" y="36" width="328" height="478" rx="1" stroke="#222" strokeWidth="1" fill="none" opacity="0.2" />
+
+        {/* Main Door Panels layout */}
+        {item.id % 2 === 0 ? (
+          // Traditional Elegant 6-Panel Design
+          <>
+            {/* Top Row Panels */}
+            <rect x="52" y="52" width="130" height="120" fill={paneColor1} stroke={lineAccent} strokeWidth="4" />
+            <rect x="58" y="58" width="118" height="108" fill={paneColor2} stroke="#fff" strokeWidth="0.8" opacity="0.15" />
+
+            <rect x="218" y="52" width="130" height="120" fill={paneColor1} stroke={lineAccent} strokeWidth="4" />
+            <rect x="224" y="58" width="118" height="108" fill={paneColor2} stroke="#fff" strokeWidth="0.8" opacity="0.15" />
+
+            {/* Middle Row Panels */}
+            <rect x="52" y="196" width="130" height="150" fill={paneColor1} stroke={lineAccent} strokeWidth="4" />
+            <rect x="58" y="202" width="118" height="138" fill={paneColor2} stroke="#fff" strokeWidth="0.8" opacity="0.15" />
+
+            <rect x="218" y="196" width="130" height="150" fill={paneColor1} stroke={lineAccent} strokeWidth="4" />
+            <rect x="224" y="202" width="118" height="138" fill={paneColor2} stroke="#fff" strokeWidth="0.8" opacity="0.15" />
+
+            {/* Bottom Row Panels */}
+            <rect x="52" y="370" width="130" height="135" fill={paneColor1} stroke={lineAccent} strokeWidth="4" />
+            <rect x="58" y="376" width="118" height="123" fill={paneColor2} stroke="#fff" strokeWidth="0.8" opacity="0.15" />
+
+            <rect x="218" y="370" width="130" height="135" fill={paneColor1} stroke={lineAccent} strokeWidth="4" />
+            <rect x="224" y="376" width="118" height="123" fill={paneColor2} stroke="#fff" strokeWidth="0.8" opacity="0.15" />
+          </>
+        ) : (
+          // Contemporary Grooved Modern Slate Minimalist design
+          <>
+            <rect x="52" y="52" width="296" height="446" fill={paneColor1} stroke={lineAccent} strokeWidth="4" />
+            
+            {/* Elegant Minimalist Horizontal CNC Carvings */}
+            <line x1="60" y1="120" x2="340" y2="120" stroke={lineAccent} strokeWidth="3" opacity="0.8" />
+            <line x1="60" y1="180" x2="340" y2="180" stroke={lineAccent} strokeWidth="3" opacity="0.8" />
+            <line x1="60" y1="240" x2="340" y2="240" stroke={lineAccent} strokeWidth="3" opacity="0.8" />
+            <line x1="60" y1="300" x2="340" y2="300" stroke={lineAccent} strokeWidth="3" opacity="0.8" />
+            <line x1="60" y1="360" x2="340" y2="360" stroke={lineAccent} strokeWidth="3" opacity="0.8" />
+            <line x1="60" y1="420" x2="340" y2="420" stroke={lineAccent} strokeWidth="3" opacity="0.8" />
+
+            {/* Inner artistic diamond CNC accent of our brand */}
+            <polygon points="200,105 215,120 200,135 185,120" fill="none" stroke={lineAccent} strokeWidth="1.5" />
+            <polygon points="200,285 215,300 200,315 185,300" fill="none" stroke={lineAccent} strokeWidth="1.5" />
+          </>
+        )}
+
+        {/* Premium Brass Handle/Pull */}
+        <rect x="320" y="255" width="8" height="45" rx="2" fill="#D4AF37" stroke="#9A7B1C" strokeWidth="1" />
+        <circle cx="324" cy="277.5" r="3" fill="#1C1A17" />
+        
+        {/* Subtle Watermark/Logo Label in Gold */}
+        <text x="200" y="520" fill="#EAE0D5" fontSize="12" fontFamily="Plus Jakarta Sans, sans-serif" fontWeight="bold" letterSpacing="4" textAnchor="middle" opacity="0.45">VK DOOR DESIGN</text>
+      </svg>
+    );
+  };
+
+  // Build the clean WhatsApp Inquire text using only the VK standard key
+  const generateWhatsAppLink = (item: LookbookItem) => {
+    const codeName = `VK ${100 + item.id}`;
+    const textMsg = `Hello VK DOOR, I am looking at your premium designs. I am highly interested in design code: ${codeName}. Please contact me back with the sizing options, wood customization, and price quotation. Thank you.`;
+    return `https://wa.me/919050050120?text=${encodeURIComponent(textMsg)}`;
+  };
+
+  return (
+    <div className="space-y-12 pb-16">
+      
+      {/* 20 Image Upload Controller Input (Hidden) */}
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handleImageFileChange} 
+        accept="image/*" 
+        className="hidden" 
+      />
+
+      {/* HEADER SECTION - WRITING EXCLUSIVELY ABOUT LUXURIOUS WOODEN DOORS */}
+      <div className="relative text-center max-w-4xl mx-auto py-8 sm:py-12 px-4 sm:px-6 space-y-6">
+        <div className="inline-flex items-center space-x-2 bg-brand-light border border-brand-border/40 rounded-full px-4.5 py-1 z-10">
+          <span className="h-1.5 w-1.5 rounded-full bg-brand-wood/80" />
+          <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-brand-dark font-extrabold">The Prestige Selection</span>
+        </div>
+
+        <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl font-light tracking-tight text-stone-900 leading-tight">
+          Pristine Solid Wood <br />
+          <span className="italic font-normal text-brand-wood">Doors & Bespoke Craftsmanship</span>.
+        </h1>
+
+        <p className="font-bricolage text-stone-950 text-sm sm:text-base leading-relaxed max-w-2xl mx-auto font-medium">
+          Crafted from India&apos;s finest selected Teakwood, seasoned Sheesham, and premium hard timber. Each masterpiece is engineered with complete termite-resistant defense, perfect anti-bending alignment, and hand-mutilated finishing. <span className="whitespace-nowrap">VK DOOR</span> delivers absolute safety, high-grade acoustic dampening, and elegant vintage styles straight to luxury Indian residences.
+        </p>
+
+        {/* Studio Admin Controls floating switch but visually subtle */}
+        <div className="flex justify-center pt-2">
+          <button
+            onClick={() => setIsAdminMode(!isAdminMode)}
+            className={`px-4 py-2 rounded-full border text-[10px] font-extrabold tracking-wider transition-all uppercase flex items-center space-x-2 cursor-pointer ${
+              isAdminMode 
+                ? 'bg-amber-500 border-amber-400 text-stone-950 shadow-md shadow-amber-500/15' 
+                : 'bg-stone-50 border-stone-200 text-stone-500 hover:text-stone-800'
+            }`}
+          >
+            <i className={`fa-solid ${isAdminMode ? 'fa-pen-nib' : 'fa-sliders'}`} />
+            <span>{isAdminMode ? "Disable Edit Mode" : "Manage Images (20 Slots)"}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ADMIN STATUS FEEDBACK AND TIPS BANNER */}
+      <AnimatePresence>
+        {(uploadFeedback || isAdminMode) && (
+          <motion.div 
+            initial={{ opacity: 0, y: -15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className={`p-4 rounded-2xl border text-xs sm:text-sm font-sans flex flex-col sm:flex-row items-center justify-between gap-3 ${
+              uploadFeedback ? 'bg-amber-500/10 border-amber-500/30 text-amber-600' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <span className="flex h-2.5 w-2.5 rounded-full bg-current animate-pulse shrink-0" />
+              <p className="font-normal leading-relaxed text-center sm:text-left">
+                {uploadFeedback 
+                  ? uploadFeedback 
+                  : "💡 ADMIN ACTIVE: Tap 'Upload Picture' on any card to update it with your actual door photo. Changes save instantly!"}
+              </p>
+            </div>
+            {isAdminMode && (
+              <span className="text-[10px] bg-stone-900 text-stone-100 font-mono py-1 px-2.5 rounded-md self-end sm:self-auto font-bold select-none">
+                Interactive Studio mode
+              </span>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 20 CARD DESIGN GRID (RESPONSIVE: Strictly 2 columns on mobile, fluid scalable grid) */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-4 pb-2 border-b border-brand-border/40">
+          <span className="text-[10px] sm:text-xs font-bricolage tracking-wider uppercase text-stone-500 font-extrabold truncate whitespace-nowrap">
+            Premium Wooden Door Catalog
+          </span>
+          <span className="text-[10px] sm:text-xs font-bricolage tracking-widest text-emerald-700 font-extrabold flex items-center space-x-1.5 bg-emerald-50 border border-emerald-200/50 px-2.5 py-1 rounded-full uppercase shrink-0">
+            <i className="fa-brands fa-whatsapp text-emerald-500 text-sm" />
+            <span>Connected</span>
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+          {items.map((item, index) => (
+            <motion.div
+              layoutId={`card-container-${item.id}`}
+              key={item.id}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ duration: 0.45, delay: (index % 4) * 0.08 }}
+              className="bg-white rounded-3xl border border-brand-border/50 overflow-hidden flex flex-col justify-between group hover:shadow-lg transition-all h-full"
+            >
+              {/* IMAGE ELEMENT (NO NUMBER BUBBLE GIVEN AS REQUESTED) - PRESERVING NATURAL HIGH-QUALITY ASPECT RATIO */}
+              <div 
+                className="w-full overflow-hidden bg-transparent select-none relative cursor-pointer group"
+                style={{ aspectRatio: item.customImage ? 'auto' : '2/3' }}
+                onClick={() => {
+                  if (!isAdminMode) {
+                    setSelectedItem(item);
+                  }
+                }}
+              >
+                {item.customImage ? (
+                  <img
+                    src={item.customImage}
+                    alt={item.title}
+                    referrerPolicy="no-referrer"
+                    className="w-full h-auto block select-none pointer-events-none transition-transform duration-500 group-hover:scale-103 bg-transparent"
+                    loading="lazy"
+                  />
+                ) : (
+                  renderFallbackSVG(item)
+                )}
+
+                {/* Luxury Hover Overlay (when NOT in edit mode) */}
+                {!isAdminMode && (
+                  <div className="absolute inset-0 bg-stone-950/15 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center p-3 select-none">
+                    <span className="bg-white/95 text-brand-dark rounded-full px-4 py-1.5 text-[11px] font-bricolage font-extrabold tracking-wide shadow-lg transform translate-y-2 group-hover:translate-y-0 transition-all duration-300 flex items-center space-x-1">
+                      <i className="fa-solid fa-expand text-[9px] text-brand-gold animate-pulse" />
+                      <span>Tap to View</span>
+                    </span>
+                  </div>
+                )}
+                
+                {/* Admin Quick Action Button Overlay when Edit Mode is active */}
+                {isAdminMode && (
+                  <div className="absolute inset-0 bg-stone-900/60 backdrop-blur-xs flex flex-col items-center justify-center p-4 space-y-3 transition-opacity">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        triggerUploadInput(item.id);
+                      }}
+                      className="w-full max-w-[130px] py-2 bg-amber-500 hover:bg-amber-400 active:scale-95 text-stone-950 text-[10px] font-bold uppercase rounded-lg tracking-wider text-center cursor-pointer flex items-center justify-center space-x-1"
+                    >
+                      <i className="fa-solid fa-upload" />
+                      <span>Upload Picture</span>
+                    </button>
+
+                    {item.customImage && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleResetImage(item.id);
+                        }}
+                        className="w-full max-w-[130px] py-1.5 bg-red-600 hover:bg-red-500 active:scale-95 text-white text-[9px] font-bold uppercase rounded-lg tracking-wider text-center cursor-pointer flex items-center justify-center space-x-1"
+                      >
+                        <i className="fa-solid fa-trash-can" />
+                        <span>Delete Photo</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* CARD DETAILS WRAP (SHOWING ONLY VK 101 ETC AND COMPACT REDESIGNED WHATSAPP BUTTON BASED ON REQUEST) */}
+              <div className="p-3.5 text-center space-y-2.5 bg-white">
+                <h3 className="font-bricolage text-sm sm:text-base font-extrabold text-brand-dark tracking-wide">
+                  VK {100 + item.id}
+                </h3>
+
+                <div className="flex justify-center">
+                  <a
+                    href={generateWhatsAppLink(item)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center space-x-1 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full text-[10px] font-bold tracking-wider uppercase transition-all duration-300 hover:shadow-sm active:scale-95 cursor-pointer"
+                  >
+                    <i className="fa-brands fa-whatsapp text-xs" />
+                    <span>Inquire</span>
+                  </a>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+
+      {/* PREMIUM MINIMAL FULL SCREEN MODAL VIEW (SHOWS THE IMAGE FULL HEIGHT AND REDESIGNED COMPACT WHATSAPP BUTTON WITH WATERMARK) */}
+      <AnimatePresence>
+        {selectedItem && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-stone-950/98 backdrop-blur-xl z-[9999] flex flex-col items-center justify-between p-4 sm:p-6 select-none"
+            onClick={() => setSelectedItem(null)}
+          >
+            {/* Float Close Button at top corner */}
+            <div className="w-full flex justify-end shrink-0 max-w-lg md:max-w-xl">
+              <button
+                onClick={() => setSelectedItem(null)}
+                className="bg-stone-800/80 hover:bg-stone-700/90 text-stone-200 hover:text-white rounded-full p-2.5 transition-all cursor-pointer shadow-lg active:scale-95"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Main Center Image Container - Flexible and full length with high quality */}
+            <div className="relative flex-1 w-full max-w-lg md:max-w-xl max-h-[70vh] my-auto select-none flex flex-col items-center justify-center pointer-events-none">
+              {selectedItem.customImage ? (
+                <img
+                  src={selectedItem.customImage}
+                  alt={selectedItem.title}
+                  referrerPolicy="no-referrer"
+                  className="max-h-[64vh] max-w-full object-contain select-none pointer-events-none z-10 rounded-2xl shadow-xl bg-transparent"
+                />
+              ) : (
+                <div className="w-full h-full max-h-[64vh] p-8 flex items-center justify-center">
+                  {renderFallbackSVG(selectedItem)}
+                </div>
+              )}
+
+              {/* Watermark is exclusively below the door image - VK Copyright */}
+              <div className="mt-4 text-center pointer-events-none select-none opacity-50 z-20">
+                <p className="font-bricolage text-[11px] sm:text-xs uppercase text-stone-400 tracking-[0.25em] font-extrabold">
+                  VK DOOR © COPYRIGHT RESERVED
+                </p>
+              </div>
+            </div>
+
+            {/* Bottom Panel - White Border/Bar with Name and Button in matching small compact design */}
+            <div 
+              className="w-full max-w-sm sm:max-w-md bg-white border border-stone-200 rounded-[1.75rem] p-3 px-4 sm:px-5 shadow-2xl flex items-center justify-between gap-4 shrink-0 z-10 mt-2 hover:shadow-3xl transition-shadow duration-300"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex flex-col text-left">
+                <span className="font-bricolage text-xs uppercase tracking-widest text-stone-400 font-extrabold">
+                  Model
+                </span>
+                <span className="font-bricolage text-base sm:text-lg font-black text-stone-900 tracking-wide mt-0.5">
+                  VK {100 + selectedItem.id}
+                </span>
+              </div>
+
+              <a
+                href={generateWhatsAppLink(selectedItem)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center space-x-1.5 px-4.5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white rounded-full text-xs font-bricolage font-black tracking-wider uppercase transition-all duration-300 hover:shadow-md active:scale-95 cursor-pointer shadow-sm shrink-0"
+              >
+                <i className="fa-brands fa-whatsapp text-sm sm:text-base text-white" />
+                <span>Inquire WhatsApp</span>
+              </a>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

@@ -4,9 +4,10 @@ import Footer from './components/Footer';
 import Home from './components/Home';
 import About from './components/About';
 import Contact from './components/Contact';
+import Lookbook from './components/Lookbook';
 
 export default function App() {
-  const [page, setPage] = useState<'home' | 'about' | 'contact'>('home');
+  const [page, setPage] = useState<'home' | 'about' | 'contact' | 'lookbook'>('home');
 
   // Page switching & smooth scroll logic
   const handleNavigateAnchor = (anchorId: string) => {
@@ -128,6 +129,7 @@ export default function App() {
           {page === 'home' && <Home />}
           {page === 'about' && <About />}
           {page === 'contact' && <Contact />}
+          {page === 'lookbook' && <Lookbook />}
         </main>
       </div>
 

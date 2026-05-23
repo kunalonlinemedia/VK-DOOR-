@@ -84,3 +84,13 @@ img {
     animation-play-state: paused;
 }
 
+/* Dynamic Black and Brown Text Heading Animation */
+@keyframes blackBrownText {
+  0% { color: #110d0a; }
+  50% { color: #7c4d24; }
+  100% { color: #110d0a; }
+}
+.animate-black-brown {
+  animation: blackBrownText 4.5s ease-in-out infinite;
+}
+

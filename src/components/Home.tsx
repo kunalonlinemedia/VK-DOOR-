@@ -76,11 +76,11 @@ export default function Home() {
   return (
     <div className="space-y-12">
       {/* HERO SECTION */}
-      <section className="bg-white rounded-[2.5rem] border border-brand-border/50 p-8 md:p-16 relative overflow-hidden flex flex-col items-center justify-center min-h-[85vh] shadow-sm">
+      <section className="bg-white rounded-[2.5rem] border border-brand-border/50 p-8 pb-0 md:p-16 md:pb-0 relative overflow-hidden flex flex-col items-center justify-center shadow-sm">
         {/* Glow Sphere behind the product */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[70%] h-[70%] hero-glow pointer-events-none z-0" />
 
-        <div className="relative z-10 text-center space-y-6 max-w-4xl">
+        <div className="relative z-10 text-center space-y-4 md:space-y-5 max-w-4xl">
           {/* Glowing Badge */}
           <div className="inline-block">
             <p className="font-bricolage text-sm uppercase tracking-[0.25em] font-semibold light-glow-text">
@@ -105,7 +105,7 @@ export default function Home() {
         </div>
 
         {/* Interactive 3D Card Area with Bigger Door and NO EXTRA PADDING ABOVE/BELOW IMAGE */}
-        <div className="relative w-full max-w-md h-auto mt-6 z-10 flex items-center justify-center perspective-container">
+        <div className="relative w-full max-w-xs sm:max-w-sm h-auto mt-4 sm:mt-5 z-10 flex items-end justify-center perspective-container">
           <div 
             ref={cardRef}
             onMouseMove={handleMouseMove}
@@ -114,28 +114,30 @@ export default function Home() {
               transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) scale(${tilt.isActive ? 1.05 : 1})`,
               transition: tilt.isActive ? 'none' : 'transform 0.6s cubic-bezier(0.16, 1, 0.3, 1)'
             }}
-            className="relative w-[340px] h-[580px] cursor-grab active:cursor-grabbing transition-shadow duration-300 flex items-center justify-center"
+            className="relative w-[190px] sm:w-[260px] md:w-[310px] cursor-grab active:cursor-grabbing transition-all duration-300 flex items-end justify-center bg-transparent rounded-none border-0 overflow-visible"
           >
             {/* Real Wooden Door Image with Object Contain - Configured to fit exactly */}
             <img 
               src="https://i.postimg.cc/xTWDVSCk/20260522135754195.png" 
               alt="Premium Wooden Door" 
-              className="w-full h-full object-contain pointer-events-none select-none"
+              className="w-full h-auto block pointer-events-none select-none drop-shadow-[0_20px_45px_rgba(139,90,43,0.32)] filter"
             />
           </div>
         </div>
       </section>
 
       {/* LEADING WOODEN DOOR MANUFACTURER SECTION */}
-      <section id="about" className="reveal-on-scroll bg-white rounded-[2.5rem] border border-brand-border/50 p-8 md:p-16 relative overflow-hidden shadow-sm active-reveal">
-        <div className="max-w-4xl mx-auto text-center space-y-6">
+      <section id="about" className="reveal-on-scroll bg-white rounded-[2.5rem] border border-brand-border/50 p-8 md:p-16 relative overflow-hidden shadow-sm active-reveal text-stone-800">
+        <div className="relative z-10 max-w-4xl mx-auto text-center space-y-6">
+          {/* Elegant wooden subtitle */}
+          <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.3em] text-brand-wood font-bricolage">Heritage & Innovation</span>
           {/* Title in Bricolage Grotesque font */}
-          <h2 className="font-bricolage text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-brand-dark uppercase leading-tight">
+          <h2 className="font-bricolage text-2xl sm:text-3xl md:text-4xl font-black tracking-tight uppercase leading-tight animate-black-brown">
             LEADING WOODEN DOOR MANUFACTURER FROM INDIA
           </h2>
           {/* Details Description in Bricolage Grotesque */}
-          <p className="text-stone-600 text-sm md:text-base leading-relaxed font-bricolage font-normal">
-            Elevate your home with <span className="whitespace-nowrap">VK DOOR</span>, India’s leading luxury wooden door manufacturer. We combine precision machinery with meticulous craftsmanship to create exquisite, custom-made doors that blend artistry and innovation seamlessly. From pre-hung convenience to solid security, <span className="whitespace-nowrap">VK DOOR</span> offers an unparalleled selection of high-lasting doors crafted exclusively for discerning homeowners.
+          <p className="text-stone-600 text-sm md:text-base leading-relaxed font-bricolage font-normal max-w-3xl mx-auto">
+            Elevate your home with <span className="whitespace-nowrap text-brand-wood font-bold">VK DOOR</span>, India’s leading luxury wooden door manufacturer. We combine precision machinery with meticulous craftsmanship to create exquisite, custom-made doors that blend artistry and innovation seamlessly. From pre-hung convenience to solid security, <span className="whitespace-nowrap">VK DOOR</span> offers an unparalleled selection of high-lasting doors crafted exclusively for discerning homeowners.
           </p>
         </div>
       </section>
@@ -233,18 +235,16 @@ export default function Home() {
       </section>
 
       {/* CUSTOM DOOR SECTION WITH GRAPHICS */}
-      <section className="reveal-on-scroll bg-white rounded-[2.5rem] border border-brand-border/50 p-8 md:p-16 shadow-sm grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative overflow-hidden active-reveal">
-        {/* Background Accent Shape */}
-        <div className="absolute right-0 top-0 w-96 h-96 bg-brand-light rounded-full blur-3xl opacity-60 pointer-events-none -mr-48 -mt-48" />
-
+      <section className="reveal-on-scroll bg-white rounded-[2.5rem] border border-brand-border/50 p-8 md:p-16 shadow-sm grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative overflow-hidden active-reveal text-stone-800">
         <div className="lg:col-span-7 space-y-6 relative z-10">
+          <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.3em] text-brand-wood font-bricolage">Bespoke Architectural Engineering</span>
           {/* Title in Bricolage Grotesque */}
-          <h2 className="font-bricolage text-3xl sm:text-4xl font-extrabold tracking-tight text-brand-dark">
+          <h2 className="font-bricolage text-3xl sm:text-4xl font-black tracking-tight animate-black-brown">
             CUSTOM DOOR
           </h2>
           {/* Details Description in Bricolage Grotesque */}
           <p className="text-stone-600 text-sm md:text-base leading-relaxed font-bricolage font-normal">
-            From rustic warmth to modern minimalism, explore Unique design possibilities with <span className="whitespace-nowrap">VK DOOR</span>. Our wide selection of wood species, finishes, and hardware allows you to craft a door as unique as you are. Let your imagination be your guide, and together, we’ll turn your dream door into a reality.
+            From rustic warmth to modern minimalism, explore unique design possibilities with <span className="whitespace-nowrap text-brand-wood font-bold">VK DOOR</span>. Our wide selection of wood species, finishes, and hardware allows you to craft a door as unique as you are. Let your imagination be your guide, and together, we’ll turn your dream door into a reality.
           </p>
         </div>
 
@@ -421,71 +421,71 @@ export default function Home() {
       </section>
 
       {/* WHY CHOOSE US SECTION */}
-      <section className="reveal-on-scroll bg-white rounded-[2.5rem] border border-brand-border/50 p-8 md:p-16 shadow-sm font-bricolage space-y-10 active-reveal">
-        <div className="text-center max-w-xl mx-auto space-y-3">
+      <section className="reveal-on-scroll bg-white rounded-[2.5rem] border border-brand-border/50 p-8 md:p-16 shadow-sm font-bricolage space-y-10 active-reveal text-stone-800">
+        <div className="text-center max-w-xl mx-auto space-y-3 relative z-10">
           <span className="text-xs font-bold text-stone-400 uppercase tracking-widest">Core Values & Strengths</span>
-          <h2 className="text-3xl md:text-4xl font-extrabold text-stone-900 leading-tight">Why Choose Us</h2>
+          <h2 className="text-3xl md:text-4xl font-black leading-tight animate-black-brown animate-black-brown-heading">Why Choose Us</h2>
         </div>
 
-        {/* Grid container for the 6 points with detailed matching SVGs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Grid container for the 6 points with detailed matching SVGs with vibrant design color accents */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 relative z-10">
           {/* 1. UNMATCHED PRICE */}
-          <div className="bg-stone-50/50 hover:bg-white rounded-2xl border border-brand-border/40 p-6 space-y-4 hover:shadow-md transition-all duration-300 flex flex-col justify-between">
+          <div className="bg-stone-50/50 hover:bg-white rounded-2xl border border-brand-border/40 p-6 space-y-4 hover:shadow-md transition-all duration-300 flex flex-col justify-between group">
             <div className="space-y-4">
-              <div className="w-10 h-10 rounded-xl bg-brand-light flex items-center justify-center text-brand-wood shadow-inner">
+              <div className="w-10 h-10 rounded-xl bg-brand-light flex items-center justify-center text-brand-wood shadow-inner group-hover:scale-105 transition-transform">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581a1.125 1.125 0 001.59 0l5.881-5.881a1.125 1.125 0 000-1.59l-9.581-9.581A2.25 2.25 0 009.568 3z" />
                   <circle cx="7.5" cy="7.5" r="1.25" fill="currentColor" />
                 </svg>
               </div>
               <h3 className="text-base font-bold text-brand-dark uppercase tracking-tight">1. UNMATCHED PRICE</h3>
-              <p className="text-xs text-stone-500 leading-relaxed font-normal">Unbeatable prices for premium wooden doors! Get top-quality craftsmanship, durability, and style without overspending. Luxury meets affordability like never before.</p>
+              <p className="text-xs text-stone-500 leading-relaxed font-normal font-normal">Unbeatable prices for premium wooden doors! Get top-quality craftsmanship, durability, and style without overspending. Luxury meets affordability like never before.</p>
             </div>
           </div>
 
           {/* 2. TWIST & BEND RESISTANT */}
-          <div className="bg-stone-50/50 hover:bg-white rounded-2xl border border-brand-border/40 p-6 space-y-4 hover:shadow-md transition-all duration-300 flex flex-col justify-between">
+          <div className="bg-stone-50/50 hover:bg-white rounded-2xl border border-brand-border/40 p-6 space-y-4 hover:shadow-md transition-all duration-300 flex flex-col justify-between group">
             <div className="space-y-4">
-              <div className="w-10 h-10 rounded-xl bg-brand-light flex items-center justify-center text-brand-wood shadow-inner">
+              <div className="w-10 h-10 rounded-xl bg-brand-light flex items-center justify-center text-brand-wood shadow-inner group-hover:scale-105 transition-transform">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v18M3 12h18M5.25 5.25l13.5 13.5M18.75 5.25l-13.5 13.5" />
                 </svg>
               </div>
               <h3 className="text-base font-bold text-brand-dark uppercase tracking-tight">2. TWIST & BEND RESISTANT</h3>
-              <p className="text-xs text-stone-500 leading-relaxed font-normal">Engineered for strength! Our wooden doors are twist & bend resistant, ensuring long-lasting durability and perfect shape for years.</p>
+              <p className="text-xs text-stone-500 leading-relaxed font-normal font-normal">Engineered for strength! Our wooden doors are twist & bend resistant, ensuring long-lasting durability and perfect shape for years.</p>
             </div>
           </div>
 
           {/* 3. CUSTOM MADE */}
-          <div className="bg-stone-50/50 hover:bg-white rounded-2xl border border-brand-border/40 p-6 space-y-4 hover:shadow-md transition-all duration-300 flex flex-col justify-between">
+          <div className="bg-stone-50/50 hover:bg-white rounded-2xl border border-brand-border/40 p-6 space-y-4 hover:shadow-md transition-all duration-300 flex flex-col justify-between group">
             <div className="space-y-4">
-              <div className="w-10 h-10 rounded-xl bg-brand-light flex items-center justify-center text-brand-wood shadow-inner">
+              <div className="w-10 h-10 rounded-xl bg-brand-light flex items-center justify-center text-brand-wood shadow-inner group-hover:scale-105 transition-transform">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
                 </svg>
               </div>
               <h3 className="text-base font-bold text-brand-dark uppercase tracking-tight">3. CUSTOM MADE</h3>
-              <p className="text-xs text-stone-500 leading-relaxed font-normal">Tailored to perfection! Our custom-made wooden doors are designed to match your style, size, and finish for a unique touch.</p>
+              <p className="text-xs text-stone-500 leading-relaxed font-normal font-normal">Tailored to perfection! Our custom-made wooden doors are designed to match your style, size, and finish for a unique touch.</p>
             </div>
           </div>
 
           {/* 4. TERMITE RESISTANT */}
-          <div className="bg-stone-50/50 hover:bg-white rounded-2xl border border-brand-border/40 p-6 space-y-4 hover:shadow-md transition-all duration-300 flex flex-col justify-between">
+          <div className="bg-stone-50/50 hover:bg-white rounded-2xl border border-brand-border/40 p-6 space-y-4 hover:shadow-md transition-all duration-300 flex flex-col justify-between group">
             <div className="space-y-4">
-              <div className="w-10 h-10 rounded-xl bg-brand-light flex items-center justify-center text-brand-wood shadow-inner">
+              <div className="w-10 h-10 rounded-xl bg-brand-light flex items-center justify-center text-brand-wood shadow-inner group-hover:scale-105 transition-transform">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
                 </svg>
               </div>
               <h3 className="text-base font-bold text-brand-dark uppercase tracking-tight">4. TERMITE RESISTANT</h3>
-              <p className="text-xs text-stone-500 leading-relaxed font-normal">Shielded against termites! Our termite-resistant wooden doors ensure lasting durability, keeping your home protected and stylish for years.</p>
+              <p className="text-xs text-stone-500 leading-relaxed font-normal font-normal">Shielded against termites! Our termite-resistant wooden doors ensure lasting durability, keeping your home protected and stylish for years.</p>
             </div>
           </div>
 
           {/* 5. 100% NATURAL WOOD */}
-          <div className="bg-stone-50/50 hover:bg-white rounded-2xl border border-brand-border/40 p-6 space-y-4 hover:shadow-md transition-all duration-300 flex flex-col justify-between">
+          <div className="bg-stone-50/50 hover:bg-white rounded-2xl border border-brand-border/40 p-6 space-y-4 hover:shadow-md transition-all duration-300 flex flex-col justify-between group">
             <div className="space-y-4">
-              <div className="w-10 h-10 rounded-xl bg-brand-light flex items-center justify-center text-brand-wood shadow-inner">
+              <div className="w-10 h-10 rounded-xl bg-brand-light flex items-center justify-center text-brand-wood shadow-inner group-hover:scale-105 transition-transform">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                   <circle cx="12" cy="12" r="9" />
                   <circle cx="12" cy="12" r="6" strokeDasharray="2 2" />
@@ -493,20 +493,21 @@ export default function Home() {
                 </svg>
               </div>
               <h3 className="text-base font-bold text-brand-dark uppercase tracking-tight">5. 100% NATURAL WOOD</h3>
-              <p className="text-xs text-stone-500 leading-relaxed font-normal">Crafted from 100% natural wood, our doors bring unmatched strength, elegance, and authenticity, ensuring a timeless and durable addition to your space.</p>
+              <p className="text-xs text-stone-500 leading-relaxed font-normal font-normal">Crafted from 100% natural wood, our doors bring unmatched strength, elegance, and authenticity, ensuring a timeless and durable addition to your space.</p>
             </div>
           </div>
 
+          {" "}
           {/* 6. 34+ YEARS OF EXPERIENCE */}
-          <div className="bg-stone-50/50 hover:bg-white rounded-2xl border border-brand-border/40 p-6 space-y-4 hover:shadow-md transition-all duration-300 flex flex-col justify-between">
+          <div className="bg-stone-50/50 hover:bg-white rounded-2xl border border-brand-border/40 p-6 space-y-4 hover:shadow-md transition-all duration-300 flex flex-col justify-between group">
             <div className="space-y-4">
-              <div className="w-10 h-10 rounded-xl bg-brand-light flex items-center justify-center text-brand-wood shadow-inner">
+              <div className="w-10 h-10 rounded-xl bg-brand-light flex items-center justify-center text-brand-wood shadow-inner group-hover:scale-105 transition-transform">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.75a1.125 1.125 0 01-1.125-1.125V11.25m9 7.5V11.25M7.5 11.25H16.5M12 3v3" />
                 </svg>
               </div>
               <h3 className="text-base font-bold text-brand-dark uppercase tracking-tight">6. 34+ YEARS OF EXPERIENCE</h3>
-              <p className="text-xs text-stone-500 leading-relaxed font-normal">Since 1992, we’ve built years of expertise in crafting premium wooden doors, delivering unmatched quality, durability, and elegance.</p>
+              <p className="text-xs text-stone-500 leading-relaxed font-normal font-normal">Since 1992, we’ve built years of expertise in crafting premium wooden doors, delivering unmatched quality, durability, and elegance.</p>
             </div>
           </div>
         </div>

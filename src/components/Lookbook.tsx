@@ -36,13 +36,16 @@ export default function Lookbook() {
   const [items, setItems] = useState<LookbookItem[]>(() => {
     let baseItems = [...PRESET_DESIGNS];
     try {
-      const savedItemsStr = localStorage.getItem('vk_door_lookbook_items_v3');
+      // Clear any legacy v3 / v2 storage as requested to remove previous images from every system
+      localStorage.removeItem('vk_door_lookbook_items_v3');
+      localStorage.removeItem('vk_door_lookbook_photos_v2');
+
+      const savedItemsStr = localStorage.getItem('vk_door_lookbook_items_v4');
       if (savedItemsStr) {
         return JSON.parse(savedItemsStr) as LookbookItem[];
       }
       
-      // Backward compatibility: Merge legacy photos from older key into the preset list
-      const savedPhotosStr = localStorage.getItem('vk_door_lookbook_photos_v2');
+      const savedPhotosStr = localStorage.getItem('vk_door_lookbook_photos_v4');
       if (savedPhotosStr) {
         const savedPhotos = JSON.parse(savedPhotosStr) as Record<number, string>;
         baseItems = baseItems.map(item => {
@@ -93,7 +96,7 @@ export default function Lookbook() {
         if (Array.isArray(data) && data.length > 0) {
           setItems(data);
           try {
-            localStorage.setItem('vk_door_lookbook_items_v3', JSON.stringify(data));
+            localStorage.setItem('vk_door_lookbook_items_v4', JSON.stringify(data));
           } catch (storageError) {
             console.error("Failed to cache server items:", storageError);
           }
@@ -125,14 +128,14 @@ export default function Lookbook() {
   const saveCustomPhoto = async (id: number, imgUrl: string | null) => {
     // 1. Maintain photos record in sync for generic backward-compatibility fallback
     try {
-      const savedPhotosStr = localStorage.getItem('vk_door_lookbook_photos_v2') || "{}";
+      const savedPhotosStr = localStorage.getItem('vk_door_lookbook_photos_v4') || "{}";
       const savedPhotos = JSON.parse(savedPhotosStr) as Record<number, string>;
       if (imgUrl) {
         savedPhotos[id] = imgUrl;
       } else {
         delete savedPhotos[id];
       }
-      localStorage.setItem('vk_door_lookbook_photos_v2', JSON.stringify(savedPhotos));
+      localStorage.setItem('vk_door_lookbook_photos_v4', JSON.stringify(savedPhotos));
     } catch (e) {
       console.error("Failed to clean up lookup photo cache", e);
     }

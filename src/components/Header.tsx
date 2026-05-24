@@ -86,7 +86,7 @@ export default function Header({ currentPage, setPage, onNavigateAnchor }: Heade
             Contact Us
           </button>
           <a 
-            href="https://wa.me/919050050120" 
+            href={`https://wa.me/919050050120?text=${encodeURIComponent('Namaste! Mujhe aapke products ke baare me jankari chahiye. Mera detail/sawal hai: ')}`} 
             target="_blank" 
             rel="noopener noreferrer"
             className="w-full text-center font-bricolage text-xs font-bold py-2.5 px-4 rounded-xl bg-[#25D366] hover:bg-[#20ba5a] active:scale-[0.98] transition-all flex items-center justify-center text-white border border-[#25D366]"

@@ -79,7 +79,7 @@ export default function Footer({ currentPage, setPage }: FooterProps) {
         {/* Centered Consultation WhatsApp Button */}
         <div className="flex justify-center w-full">
           <a 
-            href="https://wa.me/919050050120" 
+            href={`https://wa.me/919050050120?text=${encodeURIComponent('Namaste! Mujhe aapke products ke baare me jankari chahiye. Mera detail/sawal hai: ')}`} 
             target="_blank" 
             rel="noopener noreferrer"
             className="px-6 py-3 bg-[#25D366] text-white hover:bg-[#20ba5a] active:scale-95 transition-all rounded-full text-xs font-bold tracking-wide flex items-center space-x-1.5 shadow-sm"

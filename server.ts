@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import dotenv from "dotenv";
-dotenv.config();
+dotenv.config({ override: true });
 
 import { createServer as createViteServer } from "vite";
 
@@ -16,9 +16,9 @@ interface LookbookItem {
 
 // Upload base64 image automatically to GitHub repository Kunalonlinemedia/VK-DOOR-
 async function uploadToGitHub(id: number, base64Image: string): Promise<string> {
-  const token = process.env.GITHUB_TOKEN;
+  const token = process.env.GITHUB_UPLOAD_TOKEN;
   if (!token) {
-    throw new Error("GITHUB_TOKEN is missing in environment variables. Please add it in .env file to enable GitHub uploads.");
+    throw new Error("GITHUB_UPLOAD_TOKEN is missing in environment variables. Please add it in .env file to enable GitHub uploads.");
   }
 
   const owner = "Kunalonlinemedia";
@@ -40,13 +40,15 @@ async function uploadToGitHub(id: number, base64Image: string): Promise<string> 
   const url = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`;
   
   console.log(`Uploading VK ${id} to GitHub repository ${owner}/${repo}...`);
+  console.log(`Using GitHub token starting with: ${token.substring(0, 8)}...`);
   
   const response = await fetch(url, {
     method: "PUT",
     headers: {
       "Authorization": `Bearer ${token}`,
       "Accept": "application/vnd.github.v3+json",
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      "User-Agent": "VK-DOOR-Applet"
     },
     body: JSON.stringify({
       message: `Upload custom image for VK Door design ${id}`,

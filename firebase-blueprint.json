@@ -1,0 +1,32 @@
+{
+  "entities": {
+    "LookbookItem": {
+      "title": "LookbookItem",
+      "description": "Custom image mapping for lookbook items",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "number",
+          "description": "Item ID (e.g. 1, 2, 21)"
+        },
+        "customImage": {
+          "type": "string",
+          "description": "Direct image URL"
+        },
+        "pin": {
+          "type": "string",
+          "description": "Admin pin for authorization to write this document"
+        }
+      },
+      "required": ["id", "customImage", "pin"]
+    }
+  },
+  "firestore": {
+    "lookbook-items/{itemId}": {
+      "schema": {
+        "$ref": "LookbookItem"
+      },
+      "description": "Collection of customized lookbook item images"
+    }
+  }
+}

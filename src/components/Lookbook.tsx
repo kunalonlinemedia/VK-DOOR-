@@ -1,12 +1,15 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { collection, onSnapshot, setDoc, doc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 interface LookbookItem {
   id: number;
   title: string;
   category: string;
   woodType: string;
-  customImage?: string; // Base64 data URL
+  customImage?: string; // Base64 or URL
+  pin?: string;
 }
 
 const PRESET_DESIGNS: LookbookItem[] = [
@@ -32,37 +35,49 @@ const PRESET_DESIGNS: LookbookItem[] = [
   { id: 20, title: "Luxurious Gold-Inlay Teak Panel", category: "Double Entrance", woodType: "Elite Burma Teak" }
 ];
 
-export default function Lookbook() {
-  const [items, setItems] = useState<LookbookItem[]>(() => {
-    let baseItems = [...PRESET_DESIGNS];
-    try {
-      // Clear legacy storage versions to completely wipe out any previous images from all user devices
-      localStorage.removeItem('vk_door_lookbook_items_v3');
-      localStorage.removeItem('vk_door_lookbook_photos_v2');
-      localStorage.removeItem('vk_door_lookbook_items_v4');
-      localStorage.removeItem('vk_door_lookbook_photos_v4');
+const compressImage = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1200;
+        const MAX_HEIGHT = 1200;
+        let width = img.width;
+        let height = img.height;
 
-      const savedItemsStr = localStorage.getItem('vk_door_lookbook_items_v5');
-      if (savedItemsStr) {
-        return JSON.parse(savedItemsStr) as LookbookItem[];
-      }
-      
-      const savedPhotosStr = localStorage.getItem('vk_door_lookbook_photos_v5');
-      if (savedPhotosStr) {
-        const savedPhotos = JSON.parse(savedPhotosStr) as Record<number, string>;
-        baseItems = baseItems.map(item => {
-          if (savedPhotos[item.id]) {
-            return { ...item, customImage: savedPhotos[item.id] };
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
           }
-          return item;
-        });
-      }
-    } catch (e) {
-      console.error("Could not parse dynamic lookbook items, loading presets", e);
-    }
-    return baseItems;
-  });
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
 
+        // Compress heavily for Firestore (0.65 quality WebP)
+        const dataUrl = canvas.toDataURL('image/webp', 0.65);
+        resolve(dataUrl);
+      };
+      img.onerror = (error) => reject(error);
+    };
+    reader.onerror = (error) => reject(error);
+  });
+};
+
+export default function Lookbook() {
+  const [items, setItems] = useState<LookbookItem[]>([...PRESET_DESIGNS]);
   const [selectedItem, setSelectedItem] = useState<LookbookItem | null>(null);
   const [isAdminMode, setIsAdminMode] = useState<boolean>(false);
   
@@ -89,26 +104,90 @@ export default function Lookbook() {
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [isUploading, setIsUploading] = useState<boolean>(false);
 
-  // Load fresh items from server database on mount
+  // Drag and drop states
+  const [dragActive, setDragActive] = useState<boolean>(false);
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      await processLocalFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      await processLocalFile(e.target.files[0]);
+    }
+  };
+
+  const processLocalFile = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+       setUploadFeedback("❌ Please drop image files only!");
+       setTimeout(() => setUploadFeedback(""), 3000);
+       return;
+    }
+    setIsUploading(true);
+    setUploadFeedback("Compressing image...");
+    try {
+      const compressedDataUrl = await compressImage(file);
+      setPreviewUrl(compressedDataUrl);
+      setUploadFeedback("✨ Image ready! Click 'Save & Publish' below.");
+      setTimeout(() => setUploadFeedback(""), 5000);
+    } catch (err) {
+      console.error(err);
+      setUploadFeedback("❌ Failed to process image.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Firestore Live Listener
   useEffect(() => {
-    fetch("/api/lookbook-items")
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to load backend items");
-        return res.json();
-      })
-      .then((data: LookbookItem[]) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setItems(data);
-          try {
-            localStorage.setItem('vk_door_lookbook_items_v4', JSON.stringify(data));
-          } catch (storageError) {
-            console.error("Failed to cache server items:", storageError);
+    const unsub = onSnapshot(collection(db, "lookbook-items"), (snapshot) => {
+      const fbItems = snapshot.docs.map(d => d.data() as LookbookItem);
+      
+      setItems((prev) => {
+        let baseItems = [...PRESET_DESIGNS];
+        
+        // Merge preset designs with Firestore overrides
+        fbItems.forEach(fbItem => {
+          if (!fbItem.customImage) return; // Skip if empty (deleted/reset)
+          
+          const index = baseItems.findIndex(b => b.id === fbItem.id);
+          if (index !== -1) {
+             baseItems[index].customImage = fbItem.customImage;
+          } else {
+             // For dynamic items generated by '+' button
+             baseItems.push({
+                id: fbItem.id,
+                title: `Bespoke Premium Design VK ${100 + fbItem.id}`,
+                category: "Custom Design",
+                woodType: "Selected Hardwood",
+                customImage: fbItem.customImage
+             });
           }
-        }
-      })
-      .catch((err) => {
-        console.warn("Using offline storage cache for lookbook:", err);
+        });
+        
+        // Sort to keep ordered
+        return baseItems.sort((a,b) => a.id - b.id);
       });
+    }, (error) => {
+      console.error("Firestore error: ", error);
+    });
+
+    return () => unsub();
   }, []);
 
   const [uploadFeedback, setUploadFeedback] = useState<string>("");
@@ -117,7 +196,6 @@ export default function Lookbook() {
     if (pinInput === "2005") {
       setIsAdminMode(true);
       setShowPinModal(false);
-      setPinInput("");
       setPinError("");
       setUploadFeedback("🔓 Access granted: Admin system started!");
       setTimeout(() => setUploadFeedback(""), 3000);
@@ -132,44 +210,16 @@ export default function Lookbook() {
     setIsUploading(true);
     setUploadFeedback(imgDataUrl ? "Publishing image link..." : "Removing design...");
     
-    // 1. Maintain photos record in local caching sync for generic backward-compatibility
     try {
-      const savedPhotosStr = localStorage.getItem('vk_door_lookbook_photos_v4') || "{}";
-      const savedPhotos = JSON.parse(savedPhotosStr) as Record<number, string>;
-      if (imgDataUrl) {
-        savedPhotos[id] = imgDataUrl;
-      } else {
-        delete savedPhotos[id];
-      }
-      localStorage.setItem('vk_door_lookbook_photos_v4', JSON.stringify(savedPhotos));
-    } catch (e) {
-      console.error("Failed to clean up lookup photo cache", e);
-    }
-
-    // 2. Transmit changes to server-side directory database and Cloudflare R2
-    try {
-      const response = await fetch("/api/lookbook-items", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ id, customImage: imgDataUrl }),
+      // Set to empty string for resets to adhere to Firestore rules (customImage is string required)
+      await setDoc(doc(db, "lookbook-items", String(id)), {
+        id,
+        customImage: imgDataUrl || "",
+        pin: pinInput || "2005" // Pass the PIN to bypass security rules 
       });
-      if (!response.ok) {
-        throw new Error("Cloud sync request failed");
-      }
-      const data = await response.json();
-      if (data.success && Array.isArray(data.items)) {
-        setItems(data.items);
-        try {
-          localStorage.setItem('vk_door_lookbook_items_v4', JSON.stringify(data.items));
-        } catch (e) {
-          console.error(e);
-        }
-        setUploadFeedback(imgDataUrl ? "🚀 Picture saved and published live!" : "🗑️ Design reset successfully!");
-      }
+      setUploadFeedback(imgDataUrl ? "🚀 Picture saved and published live!" : "🗑️ Design reset successfully!");
     } catch (e) {
-      console.error("Local sync server connection failure:", e);
+      console.error("Firestore sync failure:", e);
       setUploadFeedback("⚠️ Server error. Could not upload image.");
     } finally {
       setIsUploading(false);
@@ -635,19 +685,35 @@ export default function Lookbook() {
               </div>
 
               <form onSubmit={handleSaveUploadedImage} className="space-y-4">
-                <div className="space-y-3">
-                  <label className="text-xs font-bold text-stone-700 uppercase tracking-wider flex justify-between items-center">
-                    <span>Direct Image Link (URL)</span>
-                    <a 
-                      href="https://postimages.org/" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-[10px] text-brand-dark bg-stone-100 hover:bg-stone-200 px-2 py-1 rounded-md transition-colors"
-                    >
-                      <i className="fa-solid fa-arrow-up-right-from-square mr-1"></i>
-                      Open Postimages
-                    </a>
+                {/* Drag and Drop Zone */}
+                <div 
+                  className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer flex flex-col items-center justify-center ${dragActive ? 'border-amber-500 bg-amber-50' : 'border-stone-300 bg-stone-50 hover:bg-stone-100'}`}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                >
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleFileChange} 
+                    className="hidden" 
+                    id="imageUpload" 
+                  />
+                  <label htmlFor="imageUpload" className="cursor-pointer flex flex-col items-center justify-center w-full h-full">
+                    <i className="fa-solid fa-cloud-arrow-up text-3xl text-stone-400 mb-3 hover:-translate-y-1 transition-transform"></i>
+                    <p className="text-sm font-bold text-stone-700 font-sans">Tap to upload or drag image here</p>
+                    <p className="text-[10px] text-stone-500 mt-1 uppercase font-bold tracking-wider">Fast auto-compression built-in</p>
                   </label>
+                </div>
+
+                <div className="flex items-center my-2">
+                    <div className="flex-grow border-t border-stone-200"></div>
+                    <span className="mx-4 text-[10px] font-bold text-stone-400 uppercase tracking-widest">OR PASTE LINK</span>
+                    <div className="flex-grow border-t border-stone-200"></div>
+                </div>
+
+                <div className="space-y-3">
                   <input
                     type="url"
                     placeholder="https://i.postimg.cc/example.jpg"
@@ -655,10 +721,6 @@ export default function Lookbook() {
                     onChange={(e) => setPreviewUrl(e.target.value)}
                     className="w-full text-sm font-sans font-medium py-3 px-4 border border-stone-300 rounded-xl focus:border-amber-500 focus:outline-none transition-colors"
                   />
-                  <p className="text-[10px] text-stone-500 leading-relaxed">
-                    <strong>Postimages Note:</strong> Postimages ka "Website Plugin" direct attach nahi ho sakta (due to security blocks & forum-only support). <br />
-                    Lekin aap freely <strong>"Open Postimages"</strong> pe click karke waha photo daalein bina account ke, aur uska <strong>"Direct link"</strong> (https://i.postimg.cc/...) yaha paste kardein!
-                  </p>
                 </div>
 
                 {previewUrl && (

@@ -1,0 +1,58 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Validation definitions
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidLookbookItem(data) {
+      return data.keys().hasAll(['id', 'customImage', 'pin']) 
+        && data.keys().size() == 3
+        && data.id is number
+        && data.customImage is string
+        && data.customImage.size() <= 900000
+        && data.pin is string
+        && data.pin == '2005';
+    }
+
+    function isValidLookbookItemUpdate() {
+      return incoming().diff(existing()).affectedKeys().hasOnly(['customImage', 'pin', 'id'])
+        && incoming().id is number
+        && incoming().customImage is string
+        && incoming().customImage.size() <= 900000
+        && incoming().pin is string
+        && incoming().pin == '2005';
+    }
+
+    match /lookbook-items/{itemId} {
+      // Public catalog can be read by anyone
+      allow read: if isValidId(itemId);
+      allow list: if true; // The catalog wants to pull all items
+
+      // Create must use the validation blueprint which enforces the PIN
+      allow create: if isValidId(itemId) && isValidLookbookItem(incoming());
+      
+      // Update must also enforce the PIN
+      allow update: if isValidId(itemId) && isValidLookbookItemUpdate();
+
+      // Deletion requires the PIN to be passed? Wait, you cannot pass a PIN on delete!
+      // Delete has no `request.resource`. So to securely delete, perhaps they should just update `customImage` to an empty string or placeholder?
+      // Or we just don't allow delete, and they "reset" by updating the image url to empty.
+      allow delete: if false; 
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent, DragEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface LookbookItem {
@@ -128,72 +128,6 @@ export default function Lookbook() {
     }
   };
 
-
-
-  // HTML5 high-end canvas image utility to compress files on client-side before sending
-  const compressAndPreview = (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      alert("Invalid file: Please choose a valid photograph (JPG, PNG, WEBP).");
-      return;
-    }
-
-    setUploadFeedback("Optimizing photograph resolution...");
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const originalBase64 = event.target?.result as string;
-
-      const img = new Image();
-      img.src = originalBase64;
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        let width = img.width;
-        let height = img.height;
-
-        // Premium Lookbook sharpness dimension (max 1200px)
-        const maxDim = 1200;
-        if (width > height) {
-          if (width > maxDim) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          }
-        } else {
-          if (height > maxDim) {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          const compressedBase64 = canvas.toDataURL("image/jpeg", 0.82);
-          setPreviewUrl(compressedBase64);
-          setUploadFeedback("✨ Picture optimized successfully!");
-        } else {
-          setPreviewUrl(originalBase64);
-        }
-        setTimeout(() => setUploadFeedback(""), 2000);
-      };
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // Drag and Drop events
-  const handleDragOver = (e: DragEvent) => {
-    e.preventDefault();
-  };
-
-  const handleDrop = (e: DragEvent) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      compressAndPreview(file);
-    }
-  };
-
-  // Save custom link helper syncing with fullstack server API
   const saveCustomPhoto = async (id: number, imgDataUrl: string | null) => {
     setIsUploading(true);
     setUploadFeedback(imgDataUrl ? "Publishing image link..." : "Removing design...");
@@ -445,7 +379,7 @@ export default function Lookbook() {
               <p className="font-normal leading-relaxed text-center sm:text-left">
                 {uploadFeedback 
                   ? uploadFeedback 
-                  : "💡 ADMIN ACTIVE: Click 'Upload Image' on any card to compress, upload, and save a physical photograph directly to the server!"}
+                  : "💡 ADMIN ACTIVE: Click 'Add Link' on any card to update its design using a direct Image URL."}
               </p>
             </div>
             {isAdminMode && (
@@ -522,8 +456,8 @@ export default function Lookbook() {
                       }}
                       className="w-full max-w-[130px] py-2 bg-amber-500 hover:bg-amber-400 active:scale-95 text-stone-950 text-[10px] font-bold uppercase rounded-lg tracking-wider text-center cursor-pointer flex items-center justify-center space-x-1"
                     >
-                      <i className="fa-solid fa-camera" />
-                      <span>Upload Image</span>
+                      <i className="fa-solid fa-link" />
+                      <span>Add Link</span>
                     </button>
 
                     {item.customImage && (
@@ -586,7 +520,7 @@ export default function Lookbook() {
                   </h3>
                   
                   <p className="text-[10px] text-stone-400 mt-1.5 max-w-[150px] leading-normal font-normal">
-                    Click to upload a physical photograph of the brand new door design
+                    Click to add a direct image link for this new design
                   </p>
                 </div>
 
@@ -595,8 +529,8 @@ export default function Lookbook() {
                     onClick={() => openUploadModal(nextId)}
                     className="inline-flex items-center space-x-1 px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 rounded-full text-[10px] font-bold tracking-wider uppercase transition-all active:scale-95 cursor-pointer shadow-sm"
                   >
-                    <i className="fa-solid fa-camera" />
-                    <span>Upload Design</span>
+                    <i className="fa-solid fa-link" />
+                    <span>Add Link</span>
                   </button>
                 </div>
               </motion.div>
@@ -623,7 +557,7 @@ export default function Lookbook() {
               <div className="space-y-1.5">
                 <h3 className="font-bricolage text-xl font-black text-stone-900 uppercase">Admin Required</h3>
                 <p className="text-xs text-stone-500 font-bricolage leading-normal font-normal px-2">
-                  Enter the 4-digit verification code to access the administrative image upload system.
+                  Enter the 4-digit verification code to access the image link system.
                 </p>
               </div>
 
@@ -696,52 +630,33 @@ export default function Lookbook() {
                   VK {100 + editingItemId} Door Photograph
                 </h3>
                 <p className="text-xs text-stone-500 font-sans leading-relaxed">
-                  Apne actual custom door design ki original High-Definition photo drop ya select karein. Hamara modern system image ko automatically shrink & optimize karke fast loading web-ready banata hai pehle git pe bhejta hai.
+                  Provide a direct image URL (link) for this design. (e.g., from an image hosting service, Google Drive public link, etc.) The system will display this image across the application.
                 </p>
               </div>
 
               <form onSubmit={handleSaveUploadedImage} className="space-y-4">
-                {/* Visual Drag and Drop container panel with Live Preview */}
-                <div 
-                  onDragOver={handleDragOver}
-                  onDrop={handleDrop}
-                  className={`border-2 border-dashed rounded-2xl p-6 text-center transition-all cursor-pointer relative h-48 overflow-hidden flex flex-col items-center justify-center bg-stone-50/50 ${
-                    previewUrl ? 'border-amber-500 bg-amber-500/5' : 'border-stone-300 hover:border-stone-900 hover:bg-stone-50'
-                  }`}
-                  onClick={() => document.getElementById('lookbook-image-file-input')?.click()}
-                >
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-stone-700 uppercase tracking-wider">Direct Image Link (URL)</label>
                   <input
-                    type="file"
-                    id="lookbook-image-file-input"
-                    className="hidden"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        compressAndPreview(file);
-                      }
-                    }}
+                    type="url"
+                    placeholder="https://example.com/image.jpg"
+                    value={previewUrl}
+                    onChange={(e) => setPreviewUrl(e.target.value)}
+                    className="w-full text-sm font-sans font-medium py-3 px-4 border border-stone-300 rounded-xl focus:border-amber-500 focus:outline-none transition-colors"
                   />
-
-                  {previewUrl ? (
-                    <>
-                      <img 
-                        src={previewUrl} 
-                        alt="Preloaded preview" 
-                        className="absolute inset-0 w-full h-full object-contain p-2 z-10"
-                      />
-                      <div className="absolute inset-x-0 bottom-0 bg-stone-900/70 p-1.5 text-center text-[10px] text-white font-bold tracking-wider uppercase z-20">
-                        Click to change photo
-                      </div>
-                    </>
-                  ) : (
-                    <div className="space-y-2 pointer-events-none">
-                      <div className="text-3xl">📷</div>
-                      <p className="text-xs font-bold text-stone-600 uppercase tracking-widest">Drag & Drop Image Here</p>
-                      <p className="text-[10px] text-stone-400">or click to browse your devices</p>
-                    </div>
-                  )}
+                  <p className="text-[10px] text-stone-400">Paste a direct link to an image. (Google Drive, Imgur, Postimages, or any public static link)</p>
                 </div>
+
+                {previewUrl && (
+                  <div className="h-48 rounded-xl border border-stone-200 overflow-hidden relative bg-stone-100 flex items-center justify-center">
+                    <img 
+                      src={previewUrl} 
+                      alt="Link preview" 
+                      className="absolute inset-0 w-full h-full object-contain p-2 z-10"
+                      onError={() => setUploadFeedback("⚠️ Image link seems broken or not public.")}
+                    />
+                  </div>
+                )}
 
                 <div className="flex gap-3 pt-2">
                   <button

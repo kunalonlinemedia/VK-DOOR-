@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import dotenv from "dotenv";
 dotenv.config({ override: true });
 
@@ -34,165 +35,39 @@ const PRESET_DESIGNS: LookbookItem[] = [
   { id: 20, title: "Luxurious Gold-Inlay Teak Panel", category: "Double Entrance", woodType: "Elite Burma Teak" }
 ];
 
-async function deleteFromGitHub(id: number) {
-  const token = process.env.GITHUB_UPLOAD_TOKEN;
-  if (!token) return;
-  const owner = "Kunalonlinemedia";
-  const repo = "VK-DOOR-";
-  
-  const listUrl = `https://api.github.com/repos/${owner}/${repo}/contents/uploads`;
+const DB_FILE = path.join(process.cwd(), "lookbook-db.json");
+
+function getItems(): LookbookItem[] {
   try {
-    const res = await fetch(listUrl, {
-      headers: { "Authorization": `Bearer ${token}`, "User-Agent": "VK-DOOR-Applet", "Accept": "application/vnd.github.v3+json" },
-      cache: "no-store"
-    });
-    if (res.ok) {
-      const files = await res.json();
-      if (Array.isArray(files)) {
-        for (const file of files) {
-          if (file.name.startsWith(`door-${id}-`)) {
-            console.log(`Deleting old image ${file.name} for VK ${id}...`);
-            await fetch(file.url, {
-              method: "DELETE",
-              headers: {
-                "Authorization": `Bearer ${token}`,
-                "Accept": "application/vnd.github.v3+json",
-                "User-Agent": "VK-DOOR-Applet",
-                "Content-Type": "application/json"
-              },
-              body: JSON.stringify({
-                 message: `Delete old image for VK ${id}`,
-                 sha: file.sha
-              })
-            });
-          }
+    if (fs.existsSync(DB_FILE)) {
+      const data = fs.readFileSync(DB_FILE, "utf-8");
+      const savedItems = JSON.parse(data) as LookbookItem[];
+      // Merge saved with presets, adding custom items if id > 20
+      const merged = JSON.parse(JSON.stringify(PRESET_DESIGNS));
+      savedItems.forEach(savedItem => {
+        const index = merged.findIndex((i: LookbookItem) => i.id === savedItem.id);
+        if (index !== -1) {
+          merged[index].customImage = savedItem.customImage;
+        } else {
+          merged.push(savedItem); // append dynamic items
         }
-      }
+      });
+      return merged;
     }
-  } catch (err) {
-    console.error("Failed to delete from GitHub:", err);
+  } catch (e) {
+    console.error("Failed to read lookbook-db.json:", e);
   }
+  return JSON.parse(JSON.stringify(PRESET_DESIGNS));
 }
 
-async function uploadToGitHub(id: number, base64Image: string): Promise<string> {
-  const token = process.env.GITHUB_UPLOAD_TOKEN;
-  if (!token) {
-    throw new Error("GITHUB_UPLOAD_TOKEN is missing in environment variables.");
-  }
-
-  // Delete previous copies to avoid clutter
-  await deleteFromGitHub(id);
-
-  const owner = "Kunalonlinemedia";
-  const repo = "VK-DOOR-";
-  
-  let base64Clean = base64Image;
-  let ext = "jpg";
-  const matches = base64Image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-  
-  if (matches && matches.length === 3) {
-    const contentType = matches[1];
-    ext = contentType.split("/")[1] || "jpg";
-    base64Clean = matches[2];
-  }
-
-  const fileName = `door-${id}-${Date.now()}.${ext}`;
-  const filePath = `uploads/${fileName}`; 
-
-  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`;
-  
-  console.log(`Uploading new image to ${filePath}...`);
-  
-  const response = await fetch(url, {
-    method: "PUT",
-    headers: {
-      "Authorization": `Bearer ${token}`,
-      "Accept": "application/vnd.github.v3+json",
-      "Content-Type": "application/json",
-      "User-Agent": "VK-DOOR-Applet"
-    },
-    body: JSON.stringify({
-      message: `Upload custom image for VK Door design ${id}`,
-      content: base64Clean
-    })
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`GitHub API error ${response.status}: ${errorBody}`);
-  }
-
-  const data = await response.json() as any;
-  if (data && data.content && data.content.download_url) {
-    return data.content.download_url;
-  } else {
-    throw new Error("Invalid response format from GitHub API");
-  }
-}
-
-async function fetchLookbookItemsFromGitHub(): Promise<LookbookItem[]> {
-  const items = JSON.parse(JSON.stringify(PRESET_DESIGNS)); // deep copy
-  const token = process.env.GITHUB_UPLOAD_TOKEN;
-  
-  if (!token) {
-    console.log("No token found, returning default items");
-    return items;
-  }
-
-  const owner = "Kunalonlinemedia";
-  const repo = "VK-DOOR-";
-  const url = `https://api.github.com/repos/${owner}/${repo}/contents/uploads`;
-
+function saveItems(items: LookbookItem[]) {
   try {
-    const res = await fetch(url, {
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Accept": "application/vnd.github.v3+json",
-        "User-Agent": "VK-DOOR-Applet"
-      },
-      cache: "no-store",
-      next: { revalidate: 0 }
-    } as RequestInit);
-
-    if (res.ok) {
-      const files = await res.json();
-      if (Array.isArray(files)) {
-        files.forEach(file => {
-          if (file.name.startsWith("door-")) {
-            const parts = file.name.split("-");
-            if (parts.length >= 2) {
-              const id = parseInt(parts[1], 10);
-              if (!isNaN(id)) {
-                if (id <= 20) {
-                  const preset = items.find((i: LookbookItem) => i.id === id);
-                  if (preset) {
-                    preset.customImage = file.download_url;
-                  }
-                } else {
-                  const existingIndex = items.findIndex((i: LookbookItem) => i.id === id);
-                  if (existingIndex !== -1) {
-                    items[existingIndex].customImage = file.download_url;
-                  } else {
-                    items.push({
-                      id,
-                      title: `Bespoke Premium Design VK ${100 + id}`,
-                      category: `Custom Entrance`,
-                      woodType: `Selected Natural Hardwood`,
-                      customImage: file.download_url
-                    });
-                  }
-                }
-              }
-            }
-          }
-        });
-      }
-    }
-  } catch (error) {
-    console.error("Failed to fetch uploads list from GitHub:", error);
+    // Only save items that have customImages or IDs > 20 to keep DB small
+    const toSave = items.filter(i => i.customImage || i.id > 20);
+    fs.writeFileSync(DB_FILE, JSON.stringify(toSave, null, 2), "utf-8");
+  } catch (e) {
+    console.error("Failed to write to lookbook-db.json:", e);
   }
-  
-  return items;
 }
 
 const app = express();
@@ -201,34 +76,37 @@ const PORT = 3000;
 app.use(express.json({ limit: "5mb" }));
 app.use(express.urlencoded({ limit: "5mb", extended: true }));
 
-app.get("/api/lookbook-items", async (req, res) => {
-  try {
-    const items = await fetchLookbookItemsFromGitHub();
-    res.json(items);
-  } catch (e) {
-    res.status(500).json({ error: "Could not load lookbook items." });
-  }
+app.get("/api/lookbook-items", (req, res) => {
+  res.json(getItems());
 });
 
-app.post("/api/lookbook-items", async (req, res) => {
+app.post("/api/lookbook-items", (req, res) => {
   try {
     const { id, customImage } = req.body;
     if (id === undefined) {
       return res.status(400).json({ error: "Missing lookbook item ID" });
     }
 
-    if (customImage && (customImage.startsWith("data:image/") || customImage.startsWith("data:application/"))) {
-      await uploadToGitHub(id, customImage);
-    } else if (!customImage) {
-      // User deleted image
-      await deleteFromGitHub(id);
+    const items = getItems();
+    const index = items.findIndex((i: LookbookItem) => i.id === id);
+
+    if (index !== -1) {
+      if (customImage) {
+        items[index].customImage = customImage;
+      } else {
+        delete items[index].customImage;
+      }
+    } else if (customImage) {
+      items.push({
+        id,
+        title: `Bespoke Premium Design VK ${100 + id}`,
+        category: `Custom Entrance`,
+        woodType: `Selected Natural Hardwood`,
+        customImage: customImage
+      });
     }
 
-    // Give GitHub API a moment to propagate
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Fetch refreshed list and return to frontend
-    const items = await fetchLookbookItemsFromGitHub();
+    saveItems(items);
     res.json({ success: true, items });
   } catch (e: any) {
     console.error(e);
@@ -236,32 +114,29 @@ app.post("/api/lookbook-items", async (req, res) => {
   }
 });
 
-// Check if NOT running on Vercel to start traditional port listener
-if (process.env.VERCEL !== "1") {
-  if (process.env.NODE_ENV !== "production") {
-    // Dynamic import to avoid esbuild resolving vite in production
-    import("vite").then(async (vite) => {
-      const viteServer = await vite.createServer({
-        server: { middlewareMode: true },
-        appType: "spa",
-      });
-      app.use(viteServer.middlewares);
-      startServer();
+// Mounting Vite in Dev, serving static in Prod
+if (process.env.NODE_ENV !== "production") {
+  import("vite").then(async (vite) => {
+    const viteServer = await vite.createServer({
+      server: { middlewareMode: true },
+      appType: "spa",
     });
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
+    app.use(viteServer.middlewares);
     startServer();
-  }
+  });
+} else {
+  const distPath = path.join(process.cwd(), "dist");
+  app.use(express.static(distPath));
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(distPath, "index.html"));
+  });
+  startServer();
+}
 
-  function startServer() {
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
-  }
+function startServer() {
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
 }
 
 export default app;

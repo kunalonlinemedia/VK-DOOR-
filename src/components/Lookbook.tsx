@@ -635,16 +635,30 @@ export default function Lookbook() {
               </div>
 
               <form onSubmit={handleSaveUploadedImage} className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-stone-700 uppercase tracking-wider">Direct Image Link (URL)</label>
+                <div className="space-y-3">
+                  <label className="text-xs font-bold text-stone-700 uppercase tracking-wider flex justify-between items-center">
+                    <span>Direct Image Link (URL)</span>
+                    <a 
+                      href="https://postimages.org/" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-brand-dark bg-stone-100 hover:bg-stone-200 px-2 py-1 rounded-md transition-colors"
+                    >
+                      <i className="fa-solid fa-arrow-up-right-from-square mr-1"></i>
+                      Open Postimages
+                    </a>
+                  </label>
                   <input
                     type="url"
-                    placeholder="https://example.com/image.jpg"
+                    placeholder="https://i.postimg.cc/example.jpg"
                     value={previewUrl}
                     onChange={(e) => setPreviewUrl(e.target.value)}
                     className="w-full text-sm font-sans font-medium py-3 px-4 border border-stone-300 rounded-xl focus:border-amber-500 focus:outline-none transition-colors"
                   />
-                  <p className="text-[10px] text-stone-400">Paste a direct link to an image. (Google Drive, Imgur, Postimages, or any public static link)</p>
+                  <p className="text-[10px] text-stone-500 leading-relaxed">
+                    <strong>Postimages Note:</strong> Postimages ka "Website Plugin" direct attach nahi ho sakta (due to security blocks & forum-only support). <br />
+                    Lekin aap freely <strong>"Open Postimages"</strong> pe click karke waha photo daalein bina account ke, aur uska <strong>"Direct link"</strong> (https://i.postimg.cc/...) yaha paste kardein!
+                  </p>
                 </div>
 
                 {previewUrl && (

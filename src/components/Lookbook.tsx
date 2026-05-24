@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from 'react';
+import React, { useState, useEffect, FormEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { collection, onSnapshot, setDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -133,6 +133,7 @@ function LookbookDetailImage({ src, alt }: { src: string; alt: string }) {
 
 export default function Lookbook() {
   const [items, setItems] = useState<LookbookItem[]>([...PRESET_DESIGNS]);
+  const [isFirestoreLoaded, setIsFirestoreLoaded] = useState<boolean>(false);
   const [selectedItem, setSelectedItem] = useState<LookbookItem | null>(null);
   const [isAdminMode, setIsAdminMode] = useState<boolean>(false);
   
@@ -238,8 +239,10 @@ export default function Lookbook() {
         // Sort to keep ordered
         return baseItems.sort((a,b) => a.id - b.id);
       });
+      setIsFirestoreLoaded(true);
     }, (error) => {
       console.error("Firestore error: ", error);
+      setIsFirestoreLoaded(true);
     });
 
     return () => unsub();
@@ -308,111 +311,23 @@ export default function Lookbook() {
 
   // Helper code to render stunning default design fallback SVGs
   const renderFallbackSVG = (item: LookbookItem) => {
-    let woodBgColor = "#8B5A2B"; // Warm medium brown default
-    let lineAccent = "#5C3A21";
-    let paneColor1 = "#A0522D";
-    let paneColor2 = "#CD853F";
-
-    switch ((item.id % 5)) {
-      case 0: // Mahogany style
-        woodBgColor = "#662d1b";
-        lineAccent = "#3d1308";
-        paneColor1 = "#7c3821";
-        paneColor2 = "#944429";
-        break;
-      case 1: //CP Royal Teak style
-        woodBgColor = "#a36e3b";
-        lineAccent = "#633c16";
-        paneColor1 = "#c4884d";
-        paneColor2 = "#d99d5f";
-        break;
-      case 2: // Walnut / Smoked Oak
-        woodBgColor = "#44342d";
-        lineAccent = "#211612";
-        paneColor1 = "#5e4b42";
-        paneColor2 = "#786156";
-        break;
-      case 3: // Rosewood
-        woodBgColor = "#772b2c";
-        lineAccent = "#4a1215";
-        paneColor1 = "#8c3b3c";
-        paneColor2 = "#a84e50";
-        break;
-      case 4: // Pine / Cedar
-        woodBgColor = "#c29567";
-        lineAccent = "#8c6035";
-        paneColor1 = "#d9ad7e";
-        paneColor2 = "#ebbfa0";
-        break;
-    }
-
     return (
-      <svg className="w-full h-full object-cover transition-transform duration-500 hover:scale-105" viewBox="0 0 400 550" fill="none" xmlns="http://www.w3.org/2000/svg">
-        {/* Dynamic Abstract Wood Grain Background Mock */}
-        <rect width="400" height="550" fill={woodBgColor} />
-        
-        {/* Vertical Grain Lines */}
-        <path d="M40 0 C 60 120, 30 300, 50 550" stroke={lineAccent} strokeWidth="1" strokeLinecap="round" opacity="0.35" />
-        <path d="M120 0 C 100 180, 140 380, 110 550" stroke={lineAccent} strokeWidth="1" strokeLinecap="round" opacity="0.25" />
-        <path d="M220 0 C 240 100, 200 290, 230 550" stroke={lineAccent} strokeWidth="1.2" strokeLinecap="round" opacity="0.4" />
-        <path d="M300 0 C 280 200, 310 400, 290 550" stroke={lineAccent} strokeWidth="1" strokeLinecap="round" opacity="0.3" />
-        <path d="M370 0 C 390 150, 350 350, 380 550" stroke={lineAccent} strokeWidth="1" strokeLinecap="round" opacity="0.35" />
-
-        {/* Chaukhat Frame Outlining */}
-        <rect x="25" y="25" width="350" height="500" rx="2" stroke={lineAccent} strokeWidth="14" fill="none" opacity="0.9" />
-        <rect x="36" y="36" width="328" height="478" rx="1" stroke="#222" strokeWidth="1" fill="none" opacity="0.2" />
-
-        {/* Main Door Panels layout */}
-        {item.id % 2 === 0 ? (
-          // Traditional Elegant 6-Panel Design
+      <div className="w-full h-full min-h-[280px] sm:min-h-[340px] bg-white flex flex-col items-center justify-center relative overflow-hidden p-6 text-center select-none border border-stone-100/40 rounded-3xl">
+        {!isFirestoreLoaded ? (
           <>
-            {/* Top Row Panels */}
-            <rect x="52" y="52" width="130" height="120" fill={paneColor1} stroke={lineAccent} strokeWidth="4" />
-            <rect x="58" y="58" width="118" height="108" fill={paneColor2} stroke="#fff" strokeWidth="0.8" opacity="0.15" />
-
-            <rect x="218" y="52" width="130" height="120" fill={paneColor1} stroke={lineAccent} strokeWidth="4" />
-            <rect x="224" y="58" width="118" height="108" fill={paneColor2} stroke="#fff" strokeWidth="0.8" opacity="0.15" />
-
-            {/* Middle Row Panels */}
-            <rect x="52" y="196" width="130" height="150" fill={paneColor1} stroke={lineAccent} strokeWidth="4" />
-            <rect x="58" y="202" width="118" height="138" fill={paneColor2} stroke="#fff" strokeWidth="0.8" opacity="0.15" />
-
-            <rect x="218" y="196" width="130" height="150" fill={paneColor1} stroke={lineAccent} strokeWidth="4" />
-            <rect x="224" y="202" width="118" height="138" fill={paneColor2} stroke="#fff" strokeWidth="0.8" opacity="0.15" />
-
-            {/* Bottom Row Panels */}
-            <rect x="52" y="370" width="130" height="135" fill={paneColor1} stroke={lineAccent} strokeWidth="4" />
-            <rect x="58" y="376" width="118" height="123" fill={paneColor2} stroke="#fff" strokeWidth="0.8" opacity="0.15" />
-
-            <rect x="218" y="370" width="130" height="135" fill={paneColor1} stroke={lineAccent} strokeWidth="4" />
-            <rect x="224" y="376" width="118" height="123" fill={paneColor2} stroke="#fff" strokeWidth="0.8" opacity="0.15" />
+            <div className="w-8 h-8 border-3 border-stone-100 border-t-amber-500 rounded-full animate-spin"></div>
+            <span className="text-[10px] font-sans font-bold tracking-widest text-stone-400 mt-3 uppercase">Loading Design...</span>
           </>
         ) : (
-          // Contemporary Grooved Modern Slate Minimalist design
           <>
-            <rect x="52" y="52" width="296" height="446" fill={paneColor1} stroke={lineAccent} strokeWidth="4" />
-            
-            {/* Elegant Minimalist Horizontal CNC Carvings */}
-            <line x1="60" y1="120" x2="340" y2="120" stroke={lineAccent} strokeWidth="3" opacity="0.8" />
-            <line x1="60" y1="180" x2="340" y2="180" stroke={lineAccent} strokeWidth="3" opacity="0.8" />
-            <line x1="60" y1="240" x2="340" y2="240" stroke={lineAccent} strokeWidth="3" opacity="0.8" />
-            <line x1="60" y1="300" x2="340" y2="300" stroke={lineAccent} strokeWidth="3" opacity="0.8" />
-            <line x1="60" y1="360" x2="340" y2="360" stroke={lineAccent} strokeWidth="3" opacity="0.8" />
-            <line x1="60" y1="420" x2="340" y2="420" stroke={lineAccent} strokeWidth="3" opacity="0.8" />
-
-            {/* Inner artistic diamond CNC accent of our brand */}
-            <polygon points="200,105 215,120 200,135 185,120" fill="none" stroke={lineAccent} strokeWidth="1.5" />
-            <polygon points="200,285 215,300 200,315 185,300" fill="none" stroke={lineAccent} strokeWidth="1.5" />
+            <div className="w-12 h-12 rounded-full bg-stone-50 flex items-center justify-center mb-3">
+              <i className="fa-solid fa-door-open text-stone-300 text-lg"></i>
+            </div>
+            <span className="text-[11px] font-sans font-extrabold tracking-widest text-stone-400 uppercase">VK {100 + item.id}</span>
+            <span className="text-[9px] font-sans text-stone-400 mt-1 uppercase tracking-wider">Premium Wooden Door</span>
           </>
         )}
-
-        {/* Premium Brass Handle/Pull */}
-        <rect x="320" y="255" width="8" height="45" rx="2" fill="#D4AF37" stroke="#9A7B1C" strokeWidth="1" />
-        <circle cx="324" cy="277.5" r="3" fill="#1C1A17" />
-        
-        {/* Subtle Watermark/Logo Label in Gold */}
-        <text x="200" y="520" fill="#EAE0D5" fontSize="12" fontFamily="Plus Jakarta Sans, sans-serif" fontWeight="bold" letterSpacing="4" textAnchor="middle" opacity="0.45">VK DOOR DESIGN</text>
-      </svg>
+      </div>
     );
   };
 

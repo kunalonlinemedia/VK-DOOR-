@@ -1,6 +1,9 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
+import dotenv from "dotenv";
+dotenv.config();
+
 import { createServer as createViteServer } from "vite";
 
 interface LookbookItem {
@@ -11,7 +14,58 @@ interface LookbookItem {
   customImage?: string;
 }
 
-// Image host integrations removed per user request
+// Upload base64 image automatically to GitHub repository Kunalonlinemedia/VK-DOOR-
+async function uploadToGitHub(id: number, base64Image: string): Promise<string> {
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) {
+    throw new Error("GITHUB_TOKEN is missing in environment variables. Please add it in .env file to enable GitHub uploads.");
+  }
+
+  const owner = "Kunalonlinemedia";
+  const repo = "VK-DOOR-";
+  
+  let base64Clean = base64Image;
+  let ext = "jpg";
+  const matches = base64Image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+  
+  if (matches && matches.length === 3) {
+    const contentType = matches[1];
+    ext = contentType.split("/")[1] || "jpg";
+    base64Clean = matches[2];
+  }
+
+  const fileName = `door-${id}-${Date.now()}.${ext}`;
+  const filePath = `uploads/${fileName}`; 
+
+  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`;
+  
+  console.log(`Uploading VK ${id} to GitHub repository ${owner}/${repo}...`);
+  
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Accept": "application/vnd.github.v3+json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      message: `Upload custom image for VK Door design ${id}`,
+      content: base64Clean
+    })
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`GitHub API error ${response.status}: ${errorBody}`);
+  }
+
+  const data = await response.json() as any;
+  if (data && data.content && data.content.download_url) {
+    return data.content.download_url;
+  } else {
+    throw new Error("Invalid response format from GitHub API");
+  }
+}
 
 
 const PRESET_DESIGNS: LookbookItem[] = [
@@ -87,8 +141,20 @@ async function startServer() {
         return res.status(400).json({ error: "Missing lookbook item ID" });
       }
 
-      // customImage should just be a URL string now
       let processedImage = customImage;
+      
+      if (customImage && (customImage.startsWith("data:image/") || customImage.startsWith("data:application/"))) {
+        // Attempt to upload to GitHub
+        try {
+          processedImage = await uploadToGitHub(id, customImage);
+          console.log(`Successfully uploaded VK ${id} to GitHub: ${processedImage}`);
+        } catch (error: any) {
+          console.error("GitHub upload failed:", error.message || error);
+          // If it fails, fallback to keeping it as base64 string or whatever it is, 
+          // although we might prefer the upload to just succeed. 
+          processedImage = customImage; 
+        }
+      }
 
       const items = loadLookbookItems();
       let updated: LookbookItem[];

@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, DragEvent } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface LookbookItem {
@@ -36,16 +36,18 @@ export default function Lookbook() {
   const [items, setItems] = useState<LookbookItem[]>(() => {
     let baseItems = [...PRESET_DESIGNS];
     try {
-      // Clear any legacy v3 / v2 storage as requested to remove previous images from every system
+      // Clear legacy storage versions to completely wipe out any previous images from all user devices
       localStorage.removeItem('vk_door_lookbook_items_v3');
       localStorage.removeItem('vk_door_lookbook_photos_v2');
+      localStorage.removeItem('vk_door_lookbook_items_v4');
+      localStorage.removeItem('vk_door_lookbook_photos_v4');
 
-      const savedItemsStr = localStorage.getItem('vk_door_lookbook_items_v4');
+      const savedItemsStr = localStorage.getItem('vk_door_lookbook_items_v5');
       if (savedItemsStr) {
         return JSON.parse(savedItemsStr) as LookbookItem[];
       }
       
-      const savedPhotosStr = localStorage.getItem('vk_door_lookbook_photos_v4');
+      const savedPhotosStr = localStorage.getItem('vk_door_lookbook_photos_v5');
       if (savedPhotosStr) {
         const savedPhotos = JSON.parse(savedPhotosStr) as Record<number, string>;
         baseItems = baseItems.map(item => {
@@ -81,9 +83,11 @@ export default function Lookbook() {
     };
   }, [selectedItem, showPinModal]);
 
-  const [showUrlModal, setShowUrlModal] = useState<boolean>(false);
+  // File upload and image editing states
+  const [showUploadModal, setShowUploadModal] = useState<boolean>(false);
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
-  const [inputImageUrl, setInputImageUrl] = useState<string>("");
+  const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [isUploading, setIsUploading] = useState<boolean>(false);
 
   // Load fresh items from server database on mount
   useEffect(() => {
@@ -124,14 +128,80 @@ export default function Lookbook() {
     }
   };
 
-  // Save base64/URL state helper syncing with fullstack server API
-  const saveCustomPhoto = async (id: number, imgUrl: string | null) => {
-    // 1. Maintain photos record in sync for generic backward-compatibility fallback
+  // HTML5 high-end canvas image utility to compress files on client-side before sending
+  const compressAndPreview = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      alert("Invalid file: Please choose a valid photograph (JPG, PNG, WEBP).");
+      return;
+    }
+
+    setUploadFeedback("Optimizing photograph resolution...");
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const originalBase64 = event.target?.result as string;
+
+      const img = new Image();
+      img.src = originalBase64;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+
+        // Premium Lookbook sharpness dimension (max 1200px)
+        const maxDim = 1200;
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedBase64 = canvas.toDataURL("image/jpeg", 0.82);
+          setPreviewUrl(compressedBase64);
+          setUploadFeedback("✨ Picture optimized successfully!");
+        } else {
+          setPreviewUrl(originalBase64);
+        }
+        setTimeout(() => setUploadFeedback(""), 2000);
+      };
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Drag and Drop events
+  const handleDragOver = (e: DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      compressAndPreview(file);
+    }
+  };
+
+  // Save base64 state helper syncing with fullstack server API that uploads to Cloudflare R2
+  const saveCustomPhoto = async (id: number, imgDataUrl: string | null) => {
+    setIsUploading(true);
+    setUploadFeedback(imgDataUrl ? "Squeezing & syncing picture..." : "Removing design...");
+    
+    // 1. Maintain photos record in local caching sync for generic backward-compatibility
     try {
       const savedPhotosStr = localStorage.getItem('vk_door_lookbook_photos_v4') || "{}";
       const savedPhotos = JSON.parse(savedPhotosStr) as Record<number, string>;
-      if (imgUrl) {
-        savedPhotos[id] = imgUrl;
+      if (imgDataUrl) {
+        savedPhotos[id] = imgDataUrl;
       } else {
         delete savedPhotos[id];
       }
@@ -140,50 +210,51 @@ export default function Lookbook() {
       console.error("Failed to clean up lookup photo cache", e);
     }
 
-    // 2. Transmit changes to server-side directory database
-    setUploadFeedback("Syncing design with server database...");
+    // 2. Transmit changes to server-side directory database and Cloudflare R2
     try {
       const response = await fetch("/api/lookbook-items", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ id, customImage: imgUrl }),
+        body: JSON.stringify({ id, customImage: imgDataUrl }),
       });
       if (!response.ok) {
-        throw new Error("API request failed");
+        throw new Error("Cloud sync request failed");
       }
       const data = await response.json();
       if (data.success && Array.isArray(data.items)) {
         setItems(data.items);
         try {
-          localStorage.setItem('vk_door_lookbook_items_v3', JSON.stringify(data.items));
+          localStorage.setItem('vk_door_lookbook_items_v4', JSON.stringify(data.items));
         } catch (e) {
           console.error(e);
         }
-        setUploadFeedback(imgUrl ? "🚀 New Design Link saved successfully!" : "🗑️ Design reset successfully!");
+        setUploadFeedback(imgDataUrl ? "🚀 Picture saved and published live!" : "🗑️ Design reset successfully!");
       }
     } catch (e) {
-      console.error("Server local filesystem synchronization failure:", e);
-      setUploadFeedback("⚠️ Server error. Could not save URL link.");
+      console.error("Local sync server connection failure:", e);
+      setUploadFeedback("⚠️ Server error. Could not upload image.");
+    } finally {
+      setIsUploading(false);
+      setTimeout(() => setUploadFeedback(""), 4000);
     }
-    setTimeout(() => setUploadFeedback(""), 4000);
   };
 
-  const openUrlModal = (id: number) => {
+  const openUploadModal = (id: number) => {
     const item = items.find(i => i.id === id);
     setEditingItemId(id);
-    setInputImageUrl(item?.customImage || "");
-    setShowUrlModal(true);
+    setPreviewUrl(item?.customImage || "");
+    setShowUploadModal(true);
   };
 
-  const handleSaveImageUrl = (e: FormEvent) => {
+  const handleSaveUploadedImage = (e: FormEvent) => {
     e.preventDefault();
-    if (editingItemId === null) return;
-    saveCustomPhoto(editingItemId, inputImageUrl.trim() || null);
-    setShowUrlModal(false);
+    if (editingItemId === null || !previewUrl) return;
+    saveCustomPhoto(editingItemId, previewUrl);
+    setShowUploadModal(false);
     setEditingItemId(null);
-    setInputImageUrl("");
+    setPreviewUrl("");
   };
 
   const handleResetImage = (id: number) => {
@@ -372,7 +443,7 @@ export default function Lookbook() {
               <p className="font-normal leading-relaxed text-center sm:text-left">
                 {uploadFeedback 
                   ? uploadFeedback 
-                  : "💡 ADMIN ACTIVE: Tap 'Set Image Link' on any card to update it with your actual door photo URL. Changes save instantly!"}
+                  : "💡 ADMIN ACTIVE: Click 'Upload Image' on any card to compress, upload, and save a physical photograph directly to the server!"}
               </p>
             </div>
             {isAdminMode && (
@@ -445,12 +516,12 @@ export default function Lookbook() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        openUrlModal(item.id);
+                        openUploadModal(item.id);
                       }}
                       className="w-full max-w-[130px] py-2 bg-amber-500 hover:bg-amber-400 active:scale-95 text-stone-950 text-[10px] font-bold uppercase rounded-lg tracking-wider text-center cursor-pointer flex items-center justify-center space-x-1"
                     >
-                      <i className="fa-solid fa-link" />
-                      <span>Set Image Link</span>
+                      <i className="fa-solid fa-camera" />
+                      <span>Upload Image</span>
                     </button>
 
                     {item.customImage && (
@@ -502,7 +573,7 @@ export default function Lookbook() {
               >
                 <div 
                   className="w-full flex-1 flex flex-col items-center justify-center p-6 text-center select-none cursor-pointer"
-                  onClick={() => openUrlModal(nextId)}
+                  onClick={() => openUploadModal(nextId)}
                 >
                   <div className="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mb-3">
                     <i className="fa-solid fa-plus text-lg" />
@@ -513,17 +584,17 @@ export default function Lookbook() {
                   </h3>
                   
                   <p className="text-[10px] text-stone-400 mt-1.5 max-w-[150px] leading-normal font-normal">
-                    Click to paste a direct image URL link and publish this door pattern live
+                    Click to upload a physical photograph of the brand new door design
                   </p>
                 </div>
 
                 <div className="p-3.5 text-center bg-stone-100/40 border-t border-stone-200/50 flex justify-center">
                   <button
-                    onClick={() => openUrlModal(nextId)}
+                    onClick={() => openUploadModal(nextId)}
                     className="inline-flex items-center space-x-1 px-4 py-1.5 bg-amber-500 hover:bg-amber-400 text-stone-950 rounded-full text-[10px] font-bold tracking-wider uppercase transition-all active:scale-95 cursor-pointer shadow-sm"
                   >
-                    <i className="fa-solid fa-link" />
-                    <span>Set Link</span>
+                    <i className="fa-solid fa-camera" />
+                    <span>Upload Design</span>
                   </button>
                 </div>
               </motion.div>
@@ -603,66 +674,105 @@ export default function Lookbook() {
         )}
       </AnimatePresence>
 
-      {/* DIRECT IMAGE LINK INPUT MODAL */}
+       {/* DIRECT IMAGE FILE UPLOADER MODAL WITH LIVE COMPRESSION */}
       <AnimatePresence>
-        {showUrlModal && editingItemId !== null && (
-          <div className="fixed inset-0 bg-stone-950/80 backdrop-blur-md z-[10000] flex items-center justify-center p-4" onClick={() => { setShowUrlModal(false); setEditingItemId(null); }}>
+        {showUploadModal && editingItemId !== null && (
+          <div className="fixed inset-0 bg-stone-950/80 backdrop-blur-md z-[10000] flex items-center justify-center p-4" onClick={() => { if(!isUploading) { setShowUploadModal(false); setEditingItemId(null); setPreviewUrl(""); } }}>
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white border border-stone-200 rounded-[2rem] p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-6 text-left"
+              className="bg-white border border-stone-200 rounded-[2rem] p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 text-left"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center">
-                <i className="fa-solid fa-link text-lg" />
+              <div className="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center">
+                <i className="fa-solid fa-camera text-lg" />
               </div>
               
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <h3 className="font-bricolage text-xl font-black text-stone-900 uppercase">
-                  VK {100 + editingItemId} Image Link
+                  VK {100 + editingItemId} Door Photograph
                 </h3>
                 <p className="text-xs text-stone-500 font-sans leading-relaxed">
-                  Apne is design ke liye direct Photo Link (URL) enter karein. Pinterest, Imgur, Postimages, ya kisi bhi platform se direct link copy karke yahan paste karein.
+                  Apne actual custom door design ki original High-Definition photo drop ya select karein. Hamara modern system image ko automatically shrink & optimize karke fast loading web-ready banata hai.
                 </p>
               </div>
 
-              <form onSubmit={handleSaveImageUrl} className="space-y-4">
-                <div className="space-y-2">
-                  <label className="block text-[10px] font-extrabold text-stone-600 uppercase tracking-widest font-mono">
-                    Direct Image URL Link
-                  </label>
+              <form onSubmit={handleSaveUploadedImage} className="space-y-4">
+                {/* Visual Drag and Drop container panel with Live Preview */}
+                <div 
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
+                  className={`border-2 border-dashed rounded-2xl p-6 text-center transition-all cursor-pointer relative h-48 overflow-hidden flex flex-col items-center justify-center bg-stone-50/50 ${
+                    previewUrl ? 'border-amber-500 bg-amber-500/5' : 'border-stone-300 hover:border-stone-900 hover:bg-stone-50'
+                  }`}
+                  onClick={() => document.getElementById('lookbook-image-file-input')?.click()}
+                >
                   <input
-                    type="url"
-                    required
-                    placeholder="https://i.ibb.co/example/door.jpg"
-                    className="w-full text-xs p-3.5 rounded-xl border border-stone-300 bg-white placeholder-stone-400 focus:outline-none focus:border-stone-900 font-mono shadow-inner"
-                    value={inputImageUrl}
-                    onChange={(e) => setInputImageUrl(e.target.value)}
-                    autoFocus
+                    type="file"
+                    id="lookbook-image-file-input"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        compressAndPreview(file);
+                      }
+                    }}
                   />
-                  <p className="text-[10px] text-stone-500">
-                    Example: <code>https://images.unsplash.com/...</code> or any link ending in <code>.jpg</code>, <code>.png</code>, or <code>.webp</code>.
-                  </p>
+
+                  {previewUrl ? (
+                    <>
+                      <img 
+                        src={previewUrl} 
+                        alt="Preloaded preview" 
+                        className="absolute inset-0 w-full h-full object-contain p-2 z-10"
+                      />
+                      <div className="absolute inset-x-0 bottom-0 bg-stone-900/70 p-1.5 text-center text-[10px] text-white font-bold tracking-wider uppercase z-20">
+                        Click to change photo
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-2 pointer-events-none">
+                      <div className="text-3xl">📷</div>
+                      <p className="text-xs font-bold text-stone-600 uppercase tracking-widest">Drag & Drop Image Here</p>
+                      <p className="text-[10px] text-stone-400">or click to browse your devices</p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-3 pt-2">
                   <button
                     type="button"
+                    disabled={isUploading}
                     onClick={() => {
-                      setShowUrlModal(false);
+                      setShowUploadModal(false);
                       setEditingItemId(null);
-                      setInputImageUrl("");
+                      setPreviewUrl("");
                     }}
-                    className="flex-1 py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold uppercase rounded-xl tracking-wider cursor-pointer font-sans"
+                    className="flex-1 py-3 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold uppercase rounded-xl tracking-wider cursor-pointer font-sans disabled:opacity-50"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase rounded-xl tracking-wider cursor-pointer shadow-md font-sans"
+                    disabled={isUploading || !previewUrl}
+                    className="flex-1 py-3 bg-stone-900 hover:bg-stone-800 disabled:bg-stone-400 text-white text-xs font-bold uppercase rounded-xl tracking-wider cursor-pointer shadow-md font-sans flex items-center justify-center space-x-1.5"
                   >
-                    Save Link
+                    {isUploading ? (
+                      <>
+                        <svg className="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        <span>Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <i className="fa-solid fa-cloud-arrow-up" />
+                        <span>Save & Publish</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </form>

@@ -11,76 +11,7 @@ interface LookbookItem {
   customImage?: string;
 }
 
-// Save image to local disk storage as standard default file-based backup
-function saveImageLocally(id: number, base64Image: string, uploadsDir: string): string {
-  const matches = base64Image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-  let imageBuffer: Buffer;
-  let ext = "jpg";
-
-  if (matches && matches.length === 3) {
-    const contentType = matches[1];
-    ext = contentType.split("/")[1] || "jpg";
-    imageBuffer = Buffer.from(matches[2], "base64");
-  } else {
-    imageBuffer = Buffer.from(base64Image, "base64");
-  }
-
-  const fileName = `door-${id}-${Date.now()}.${ext}`;
-  const filePath = path.join(uploadsDir, fileName);
-
-  try {
-    if (fs.existsSync(uploadsDir)) {
-      const oldFiles = fs.readdirSync(uploadsDir);
-      for (const oldFile of oldFiles) {
-        if (oldFile.startsWith(`door-${id}-`)) {
-          fs.unlinkSync(path.join(uploadsDir, oldFile));
-        }
-      }
-    }
-  } catch (err) {
-    console.error("Local file cleanup warning:", err);
-  }
-
-  fs.writeFileSync(filePath, imageBuffer);
-  return `/uploads/${fileName}`;
-}
-
-// Upload base64 image securely to freeimage.host cloud repository
-async function uploadToFreeimageHost(id: number, base64Image: string): Promise<string> {
-  const apiKey = process.env.FREEIMAGE_HOST_API_KEY || "6d207e02198a847aa98d0a2a901485a5";
-  
-  let base64Clean = base64Image;
-  const matches = base64Image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-  if (matches && matches.length === 3) {
-    base64Clean = matches[2];
-  }
-
-  const formData = new URLSearchParams();
-  formData.append("key", apiKey.trim());
-  formData.append("action", "upload");
-  formData.append("source", base64Clean);
-  formData.append("format", "json");
-
-  console.log(`Uploading VK ${id} to Freeimage.host API...`);
-  const response = await fetch("https://freeimage.host/api/1/upload", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded"
-    },
-    body: formData.toString()
-  });
-
-  if (!response.ok) {
-    throw new Error(`Freeimage.host returned HTTP status ${response.status}`);
-  }
-
-  const data = (await response.json()) as any;
-  if (data && data.success && data.image && data.image.url) {
-    return data.image.url;
-  } else {
-    throw new Error(data?.error?.message || "Invalid response format from Freeimage.host API");
-  }
-}
+// Image host integrations removed per user request
 
 
 const PRESET_DESIGNS: LookbookItem[] = [
@@ -134,17 +65,9 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Create uploads directory for 100% free local image hosting
-  const UPLOADS_DIR = path.join(process.cwd(), "uploads");
-  if (!fs.existsSync(UPLOADS_DIR)) {
-    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-  }
-  // Serve raw uploads from local storage static mount
-  app.use("/uploads", express.static(UPLOADS_DIR));
-
-  // Body parser setup to process high-res compressed base64 images securely
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  // Body parser setup 
+  app.use(express.json({ limit: "5mb" }));
+  app.use(express.urlencoded({ limit: "5mb", extended: true }));
 
   // API Route: get lookbook items
   app.get("/api/lookbook-items", (req, res) => {
@@ -164,23 +87,8 @@ async function startServer() {
         return res.status(400).json({ error: "Missing lookbook item ID" });
       }
 
-      let processedImage: string | undefined = undefined;
-
-      if (customImage) {
-        if (customImage.startsWith("data:image/") || customImage.startsWith("data:application/")) {
-          // Attempt to upload to freeimage.host cloud repository
-          try {
-            processedImage = await uploadToFreeimageHost(id, customImage);
-            console.log(`Successfully uploaded VK ${id} to Freeimage.host: ${processedImage}`);
-          } catch (error: any) {
-            console.error("Freeimage.host upload failed, falling back to local file space:", error.message || error);
-            processedImage = saveImageLocally(id, customImage, UPLOADS_DIR);
-          }
-        } else {
-          // Already uploaded/existing image URL
-          processedImage = customImage;
-        }
-      }
+      // customImage should just be a URL string now
+      let processedImage = customImage;
 
       const items = loadLookbookItems();
       let updated: LookbookItem[];

@@ -128,73 +128,12 @@ export default function Lookbook() {
     }
   };
 
-  // HTML5 high-end canvas image utility to compress files on client-side before sending
-  const compressAndPreview = (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      alert("Invalid file: Please choose a valid photograph (JPG, PNG, WEBP).");
-      return;
-    }
 
-    setUploadFeedback("Optimizing photograph resolution...");
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const originalBase64 = event.target?.result as string;
 
-      const img = new Image();
-      img.src = originalBase64;
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        let width = img.width;
-        let height = img.height;
-
-        // Premium Lookbook sharpness dimension (max 1200px)
-        const maxDim = 1200;
-        if (width > height) {
-          if (width > maxDim) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          }
-        } else {
-          if (height > maxDim) {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          const compressedBase64 = canvas.toDataURL("image/jpeg", 0.82);
-          setPreviewUrl(compressedBase64);
-          setUploadFeedback("✨ Picture optimized successfully!");
-        } else {
-          setPreviewUrl(originalBase64);
-        }
-        setTimeout(() => setUploadFeedback(""), 2000);
-      };
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // Drag and Drop events
-  const handleDragOver = (e: DragEvent) => {
-    e.preventDefault();
-  };
-
-  const handleDrop = (e: DragEvent) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      compressAndPreview(file);
-    }
-  };
-
-  // Save base64 state helper syncing with fullstack server API that uploads to Cloudflare R2
+  // Save custom link helper syncing with fullstack server API
   const saveCustomPhoto = async (id: number, imgDataUrl: string | null) => {
     setIsUploading(true);
-    setUploadFeedback(imgDataUrl ? "Squeezing & syncing picture..." : "Removing design...");
+    setUploadFeedback(imgDataUrl ? "Publishing image link..." : "Removing design...");
     
     // 1. Maintain photos record in local caching sync for generic backward-compatibility
     try {
@@ -694,52 +633,38 @@ export default function Lookbook() {
                   VK {100 + editingItemId} Door Photograph
                 </h3>
                 <p className="text-xs text-stone-500 font-sans leading-relaxed">
-                  Apne actual custom door design ki original High-Definition photo drop ya select karein. Hamara modern system image ko automatically shrink & optimize karke fast loading web-ready banata hai.
+                  Apne actual custom door design ki direct image URL/link yaha paste karein. Aapki image turant publish hokar live web pe dikhai degi.
                 </p>
               </div>
 
               <form onSubmit={handleSaveUploadedImage} className="space-y-4">
-                {/* Visual Drag and Drop container panel with Live Preview */}
-                <div 
-                  onDragOver={handleDragOver}
-                  onDrop={handleDrop}
-                  className={`border-2 border-dashed rounded-2xl p-6 text-center transition-all cursor-pointer relative h-48 overflow-hidden flex flex-col items-center justify-center bg-stone-50/50 ${
-                    previewUrl ? 'border-amber-500 bg-amber-500/5' : 'border-stone-300 hover:border-stone-900 hover:bg-stone-50'
-                  }`}
-                  onClick={() => document.getElementById('lookbook-image-file-input')?.click()}
-                >
-                  <input
-                    type="file"
-                    id="lookbook-image-file-input"
-                    className="hidden"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        compressAndPreview(file);
-                      }
-                    }}
-                  />
-
-                  {previewUrl ? (
-                    <>
-                      <img 
-                        src={previewUrl} 
-                        alt="Preloaded preview" 
-                        className="absolute inset-0 w-full h-full object-contain p-2 z-10"
-                      />
-                      <div className="absolute inset-x-0 bottom-0 bg-stone-900/70 p-1.5 text-center text-[10px] text-white font-bold tracking-wider uppercase z-20">
-                        Click to change photo
-                      </div>
-                    </>
-                  ) : (
-                    <div className="space-y-2 pointer-events-none">
-                      <div className="text-3xl">📷</div>
-                      <p className="text-xs font-bold text-stone-600 uppercase tracking-widest">Drag & Drop Image Here</p>
-                      <p className="text-[10px] text-stone-400">or click to browse your devices</p>
-                    </div>
-                  )}
-                </div>
+                <input
+                  type="url"
+                  placeholder="Paste direct image URL here (https://...)"
+                  value={previewUrl}
+                  onChange={(e) => setPreviewUrl(e.target.value)}
+                  className="w-full px-4 py-3 bg-stone-50 border border-stone-300 rounded-xl font-sans text-sm outline-none focus:border-stone-500 focus:ring-1 focus:ring-stone-500 transition-all font-medium placeholder-stone-400"
+                  required
+                />
+                
+                {previewUrl && (
+                  <div className="w-full h-48 border border-stone-200 rounded-xl overflow-hidden bg-stone-50 relative flex items-center justify-center">
+                    <img 
+                      src={previewUrl} 
+                      alt="Link Preview" 
+                      className="max-w-full max-h-full object-contain p-2"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.onerror = null;
+                        target.style.display = 'none';
+                      }}
+                      onLoad={(e) => {
+                         const target = e.target as HTMLImageElement;
+                         target.style.display = 'block';
+                      }}
+                    />
+                  </div>
+                )}
 
                 <div className="flex gap-3 pt-2">
                   <button

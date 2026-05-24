@@ -76,6 +76,61 @@ const compressImage = (file: File): Promise<string> => {
   });
 };
 
+interface LookbookImageProps {
+  src: string;
+  alt: string;
+  className?: string;
+}
+
+function LookbookImage({ src, alt, className = "" }: LookbookImageProps) {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [errorLoaded, setErrorLoaded] = useState(false);
+
+  return (
+    <div className="relative w-full h-full min-h-[280px] sm:min-h-[340px] bg-white flex items-center justify-center overflow-hidden">
+      {(!isLoaded && !errorLoaded) && (
+        <div className="absolute inset-0 bg-white flex flex-col items-center justify-center z-20 pointer-events-none" id="img-loader">
+          <div className="w-8 h-8 border-3 border-stone-100 border-t-amber-500 rounded-full animate-spin"></div>
+          <span className="text-[10px] font-sans font-semibold tracking-wider text-stone-400 mt-2.5 uppercase">Loading...</span>
+        </div>
+      )}
+      <img
+        src={src}
+        alt={alt}
+        referrerPolicy="no-referrer"
+        onLoad={() => setIsLoaded(true)}
+        onError={() => setErrorLoaded(true)}
+        className={`${className} ${isLoaded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}
+        loading="lazy"
+      />
+    </div>
+  );
+}
+
+function LookbookDetailImage({ src, alt }: { src: string; alt: string }) {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [errorLoaded, setErrorLoaded] = useState(false);
+
+  return (
+    <div className="relative max-h-[64vh] max-w-full flex items-center justify-center rounded-2xl overflow-hidden bg-stone-900/10 min-h-[250px] min-w-[200px]" id="detail-img-loader-parent">
+      {(!isLoaded && !errorLoaded) && (
+        <div className="absolute inset-0 bg-stone-900/40 backdrop-blur-xs flex flex-col items-center justify-center z-20 pointer-events-none" id="detail-img-loader">
+          <div className="w-10 h-10 border-4 border-stone-800/80 border-t-amber-500 rounded-full animate-spin"></div>
+          <span className="text-[10px] font-sans font-bold tracking-widest text-white/70 mt-3 uppercase">Loading...</span>
+        </div>
+      )}
+      <img
+        src={src}
+        alt={alt}
+        referrerPolicy="no-referrer"
+        onLoad={() => setIsLoaded(true)}
+        onError={() => setErrorLoaded(true)}
+        className={`max-h-[64vh] max-w-full object-contain select-none pointer-events-none z-10 rounded-2xl shadow-xl bg-transparent transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+      />
+    </div>
+  );
+}
+
 export default function Lookbook() {
   const [items, setItems] = useState<LookbookItem[]>([...PRESET_DESIGNS]);
   const [selectedItem, setSelectedItem] = useState<LookbookItem | null>(null);
@@ -475,12 +530,10 @@ export default function Lookbook() {
                 }}
               >
                 {item.customImage ? (
-                  <img
-                     src={item.customImage}
+                  <LookbookImage
+                    src={item.customImage}
                     alt={item.title}
-                    referrerPolicy="no-referrer"
                     className="w-full h-auto block select-none pointer-events-none transition-transform duration-500 group-hover:scale-103 bg-transparent"
-                    loading="lazy"
                   />
                 ) : (
                   renderFallbackSVG(item)
@@ -799,11 +852,9 @@ export default function Lookbook() {
             {/* Main Center Image Container - Flexible and full length with high quality */}
             <div className="relative flex-1 w-full max-w-lg md:max-w-xl max-h-[70vh] my-auto select-none flex flex-col items-center justify-center pointer-events-none">
               {selectedItem.customImage ? (
-                <img
+                <LookbookDetailImage
                   src={selectedItem.customImage}
                   alt={selectedItem.title}
-                  referrerPolicy="no-referrer"
-                  className="max-h-[64vh] max-w-full object-contain select-none pointer-events-none z-10 rounded-2xl shadow-xl bg-transparent"
                 />
               ) : (
                 <div className="w-full h-full max-h-[64vh] p-8 flex items-center justify-center">

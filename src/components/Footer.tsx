@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 
 interface FooterProps {
-  currentPage: 'home' | 'about' | 'contact' | 'lookbook';
-  setPage: (page: 'home' | 'about' | 'contact' | 'lookbook') => void;
+  currentPage: 'home' | 'about' | 'contact' | 'lookbook' | 'reviews';
+  setPage: (page: 'home' | 'about' | 'contact' | 'lookbook' | 'reviews') => void;
 }
 
 export default function Footer({ currentPage, setPage }: FooterProps) {
@@ -55,6 +55,14 @@ export default function Footer({ currentPage, setPage }: FooterProps) {
                 className="hover:text-white transition-colors cursor-pointer select-none"
               >
                 Design Gallery
+              </button>
+            )}
+            {currentPage !== 'reviews' && (
+              <button 
+                onClick={() => { setPage('reviews'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                className="hover:text-white transition-colors cursor-pointer select-none"
+              >
+                Customer Reviews
               </button>
             )}
             {currentPage !== 'about' && (

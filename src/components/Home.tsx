@@ -1,5 +1,91 @@
 import React, { useState, useEffect, useRef, MouseEvent } from 'react';
 
+const ORDER_ADVISORY = [
+  {
+    title: "50% एडवांस भुगतान",
+    desc: "50% एडवांस राशि देने पर ही आर्डर पक्का माना जायेगा।"
+  },
+  {
+    title: "लॉक फिटिंग चार्ज",
+    desc: "दरवाजे में लॉक फिटिंग का चार्ज अलग से देय होगा।"
+  },
+  {
+    title: "प्राकृतिक सफेदी",
+    desc: "दरवाजों में लगभग 8 से 10 प्रतिशत प्राकृतिक सफेदी (Sapwood) होना सामान्य है।"
+  },
+  {
+    title: "मानक माप प्रणाली",
+    desc: "दरवाजे व खिड़कियों की पैमाईस मानक (Standard Size) के आधार पर ही की जाएगी।"
+  },
+  {
+    title: "एकतरफा डिजाइन दरें",
+    desc: "सभी दरवाजो के बुनियादी रेट सिंगल साइड डिजाइन के हैं। डबल साइड डिजाइन के रेट अलग से चार्ज होंगे।"
+  },
+  {
+    title: "निःशुल्क 4mm ग्लास",
+    desc: "दरवाजों व खिड़कियों मे 4 एम. एम. प्लेन ग्लास हमारी तरफ से रहेगा। यदि ग्लास का कोई भी अन्य डिजाईन या रंगीन ग्लास चहिये, तो उसका चार्ज अलग से होगा।"
+  },
+  {
+    title: "चौखट अतिरिक्त कार्य",
+    desc: "चौखट की विशेष मोल्डिंग, फिक्स ग्लास और फिक्स ग्लास की लकड़ी की गोलाई (गोला) का काम अलग से चार्ज होगा।"
+  },
+  {
+    title: "पॉलिश एवं पेंट शुल्क",
+    desc: "दरवाजो व खिड़कियों की पॉलिश व पेन्ट का चार्ज अलग से लिया जाएगा।"
+  },
+  {
+    title: "हार्डवेयर का सामान",
+    desc: "दरवाजे-खिड़की के हैंडल, कुंडी, ताला आदि सभी प्रकार का हार्डवेयर सामान मालिक (ग्राहक) का होगा।"
+  },
+  {
+    title: "टैक्स व परिवहन किराया",
+    desc: "GST, परिवहन किराया (मालभाड़ा), लोडिंग व सुरक्षित पैकिंग का चार्ज अलग से जोड़ा जाएगा।"
+  },
+  {
+    title: "पूर्ण भुगतान आवश्यक",
+    desc: "फैक्ट्री से माल तभी रवाना किया जाएगा जब 100% पेमेंट (पूर्ण भुगतान) जमा हो।"
+  }
+];
+
+const TECHNICAL_ADVISORY = [
+  {
+    title: "सूखी लकड़ी (Seasoned Wood)",
+    desc: "हमारी कंपनी में सारी लकड़ियां पूरी तरह सूखी हैं। इसमें घटने-बढ़ने व क्रैक होने के 80% चांस नहीं हैं। सीजनिंग होने के कारण मौसम का इस पर ज्यादा प्रभाव नहीं पड़ता।"
+  },
+  {
+    title: "मौसम का 80% प्रभाव कवर",
+    desc: "लकड़ी का दरवाजा 80% मौसम के प्रभाव (Weather Effect) को कवर कर सकता है। बाकी का 20% प्राकृतिक कारणों से कवर नहीं हो सकता व जगह न मिलने पर लकड़ी क्रैक भी हो सकती है। यदि दरवाजा सीधे धूप व पानी में हो तो प्रभाव दोगुना हो जाता है, अंदर के द्वारों में यह प्रभाव आधा रह जाता है।"
+  },
+  {
+    title: "नमी का असंतुलन (Twisting)",
+    desc: "यदि लकड़ी को एक तरफ से नमी मिल रही हो और दूसरी तरफ से हवा सूखी हो, तो उसमें ऐंठ आना स्वाभाविक है, क्योंकि लकड़ी एक साइड में मॉइस्चर अब्जॉर्ब कर रही है और दूसरी तरफ से नहीं। इसके कारण लकड़ियों में क्रैक इत्यादि आना शुरू हो सकते हैं।"
+  },
+  {
+    title: "लकड़ी जीवित है (Touch Wood)",
+    desc: "लकड़ी जीवन में कभी भी पूरी तरह 'डैड' (मृत) नहीं हो सकती। यह प्राकृतिक रूप से सांस लेती है, जिसका अर्थ है मौसम अनुसार घटना-बढ़ना इसके साथ ही रहता है। बेहतर सीजनिंग व सर्वश्रेष्ठ सुरक्षा के बाद भी हम सिर्फ 80% मौसम प्रभाव ही नियंत्रित रख सकते हैं। इसकी नियमित समय-समय पर मेंटेनेंस करते रहें और धूप-नमी से बचाएं।"
+  },
+  {
+    title: "माइल्ड प्राकृतिक भिन्नताएं",
+    desc: "आधुनिक तकनीकों के बाद भी लकड़ी के प्राकृतिक रेशों के कारण मामूली फ्रैंक (बारीक दरार), सूक्ष्म जॉइंट वेरिएशन व हल्का-फुल्का घटना-बढ़ना आना स्वाभाविक है।"
+  },
+  {
+    title: "स्थिर होने का समय (Setting)",
+    desc: "नए दरवाजों को आपके चोखट स्थल पर पूरी तरह से सेट होने में कम से कम एक पूरे मौसम (One Season) का वक्त लगता है। इसके बाद वह प्रॉपर स्थिर हो जाता है, बशर्ते दरवाजे पर अच्छी पॉलिश, पेंट या मेंटेनेंस की गई हो।"
+  },
+  {
+    title: "सन लाइन का प्रभाव (Sun Line)",
+    desc: "सीएनसी (Carving/नक्काशी) के दरवाजों के काम में बारीक सन लाइन (Sun Line) की धारियां दिखना प्राकृतिक है।"
+  },
+  {
+    title: "अनिवार्य रखरखाव",
+    desc: "कीमती लकड़ी के द्वारों की देखभाल जरूरी है। नियमित रूप से सूखी धूल-सफाई करें, लकड़ी को सूखा रखें और नमी से बचाकर पेंट या पॉलिश को मेंटेन रखें।"
+  },
+  {
+    title: "फायदे और नुकसान की समझ",
+    desc: "यदि आप लकड़ी के सुंदर दरवाजे बनवाने का निर्णय ले रहे हैं, तो इसके इन प्राकृतिक फायदों और प्राकृतिक मौसम संबंधी स्वभावों को अवश्य ध्यान में रखें।"
+  }
+];
+
 export default function Home() {
   // Wood type switcher selection
   const [woodIndex, setWoodIndex] = useState<number>(0);
@@ -417,6 +503,85 @@ export default function Home() {
               <p className="text-sm text-stone-500 leading-relaxed font-normal">High-precision door/window framing chaukhats, modern designer architraves, skirtings, and decorative trim profiles.</p>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* CUSTOMER ADVISORY & GUIDELINES (HINDI - TEXT SMALL) */}
+      <section className="reveal-on-scroll bg-[#FAF9F5]/40 rounded-[2rem] border border-brand-border/40 p-6 md:p-10 space-y-8 active-reveal font-sans">
+        <div className="text-center max-w-2xl mx-auto space-y-2">
+          <span className="text-[10px] font-extrabold text-brand-wood uppercase tracking-widest bg-brand-light px-3 py-1 rounded-full">
+            Customer Guide • आवश्यक दिशा-निर्देश
+          </span>
+          <h2 className="text-xl md:text-2xl font-black text-brand-dark font-bricolage">
+            महत्वपूर्ण दिशानिर्देश और जानकारी
+          </h2>
+          <p className="text-[11px] text-stone-400 max-w-md mx-auto">
+            उत्कृष्ट फिनिशिंग, समय पर डिलीवरी और लकड़ी के द्वारों के सर्वोत्तम रखरखाव के लिए कृपया इन महत्वपूर्ण बातों को ध्यानपूर्वक पढ़ें।
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Order guidelines column */}
+          <div className="bg-white rounded-2xl border border-brand-border/30 p-5 space-y-4 shadow-xs">
+            <div className="flex items-center gap-2 pb-2 border-b border-stone-100">
+              <div className="w-7 h-7 rounded-lg bg-stone-50 flex items-center justify-center text-brand-wood text-[11px]">
+                📝
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-brand-dark uppercase tracking-tight font-bricolage">
+                  कृपया ऑर्डर से पहले ध्यान दें...
+                </h3>
+                <p className="text-[9px] text-stone-400 uppercase tracking-widest font-semibold">Order Terms &amp; Conditions</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2.5">
+              {ORDER_ADVISORY.map((point, idx) => (
+                <div key={idx} className="flex items-start gap-2">
+                  <span className="flex-none w-4 h-4 rounded-full bg-stone-50 border border-stone-100 flex items-center justify-center text-[9px] font-bold text-brand-wood mt-0.5">
+                    {idx + 1}
+                  </span>
+                  <p className="text-[10px] sm:text-[11px] text-stone-500 leading-normal">
+                    <span className="font-semibold text-stone-800 pr-1">{point.title}:</span>{point.desc}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Technical and weather specifications column */}
+          <div className="bg-white rounded-2xl border border-brand-border/30 p-5 space-y-4 shadow-xs">
+            <div className="flex items-center gap-2 pb-2 border-b border-stone-100">
+              <div className="w-7 h-7 rounded-lg bg-stone-50 flex items-center justify-center text-brand-wood text-[11px]">
+                ⚙️
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-brand-dark uppercase tracking-tight font-bricolage">
+                  कुछ तकनीकी बातें जिनपर हमें गौर करना चाहिए
+                </h3>
+                <p className="text-[9px] text-stone-400 uppercase tracking-widest font-semibold">Technical &amp; Wood Care</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2.5">
+              {TECHNICAL_ADVISORY.map((point, idx) => (
+                <div key={idx} className="flex items-start gap-2">
+                  <span className="flex-none w-4 h-4 rounded-full bg-stone-50 border border-stone-100 flex items-center justify-center text-[9px] font-bold text-amber-600/80 mt-0.5">
+                    {idx + 1}
+                  </span>
+                  <p className="text-[10px] sm:text-[11px] text-stone-500 leading-normal">
+                    <span className="font-semibold text-stone-800 pr-1">{point.title}:</span>{point.desc}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="text-center pt-2 border-t border-brand-border/10">
+          <p className="text-[9px] text-stone-400 uppercase tracking-widest font-semibold font-bricolage">
+            © VK DOOR • SINCERE WOOD CRAFTING SINCE 1992
+          </p>
         </div>
       </section>
 

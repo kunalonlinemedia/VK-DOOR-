@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 
 interface HeaderProps {
-  currentPage: 'home' | 'about' | 'contact' | 'lookbook';
-  setPage: (page: 'home' | 'about' | 'contact' | 'lookbook') => void;
+  currentPage: 'home' | 'about' | 'contact' | 'lookbook' | 'reviews';
+  setPage: (page: 'home' | 'about' | 'contact' | 'lookbook' | 'reviews') => void;
   onNavigateAnchor: (anchorId: string) => void;
 }
 
@@ -64,6 +64,16 @@ export default function Header({ currentPage, setPage, onNavigateAnchor }: Heade
             }`}
           >
             Design Lookbook & Gallery
+          </button>
+          <button 
+            onClick={() => { setPage('reviews'); setMenuOpen(false); }}
+            className={`w-full text-left font-bricolage text-xs font-semibold py-2.5 px-4 rounded-xl border border-brand-border/20 transition-all active:scale-[0.98] ${
+              currentPage === 'reviews' 
+                ? 'bg-brand-dark text-white border-brand-dark shadow-sm' 
+                : 'bg-stone-50 hover:bg-stone-100/80 text-brand-dark'
+            }`}
+          >
+            Reviews
           </button>
           <button 
             onClick={() => { setPage('about'); setMenuOpen(false); }}
@@ -158,6 +168,17 @@ export default function Header({ currentPage, setPage, onNavigateAnchor }: Heade
             }`}
           >
             ⭐ Design Gallery
+          </button>
+
+          <button 
+            onClick={() => setPage('reviews')}
+            className={`transition-all rounded-full px-3.5 py-1.5 text-xs font-semibold ${
+              currentPage === 'reviews'
+                ? 'bg-brand-dark text-white font-bold'
+                : 'hover:text-brand-dark text-stone-500'
+            }`}
+          >
+            Reviews
           </button>
           
           <button 

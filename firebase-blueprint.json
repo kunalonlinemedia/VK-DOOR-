@@ -19,6 +19,38 @@
         }
       },
       "required": ["id", "customImage", "pin"]
+    },
+    "CustomerReview": {
+      "title": "CustomerReview",
+      "description": "Customer uploaded ratings, feedback comments, and photos of installed doors",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique Review ID"
+        },
+        "name": {
+          "type": "string",
+          "description": "Customer's human identifier name"
+        },
+        "rating": {
+          "type": "number",
+          "description": "Star rating value (integer value between 1 and 5)"
+        },
+        "feedback": {
+          "type": "string",
+          "description": "Descriptive feedback, comments, and experience details"
+        },
+        "photoUrl": {
+          "type": "string",
+          "description": "Base64 compressed image of the installed door"
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Numeric milliseconds timestamp representing submission time"
+        }
+      },
+      "required": ["id", "name", "rating", "feedback", "photoUrl", "timestamp"]
     }
   },
   "firestore": {
@@ -27,6 +59,12 @@
         "$ref": "LookbookItem"
       },
       "description": "Collection of customized lookbook item images"
+    },
+    "customer-reviews/{reviewId}": {
+      "schema": {
+        "$ref": "CustomerReview"
+      },
+      "description": "Collection of peer door installations, ratings, and feedbacks"
     }
   }
 }

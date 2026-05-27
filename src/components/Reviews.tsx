@@ -108,37 +108,10 @@ export default function Reviews() {
   useEffect(() => {
     setIsLoading(true);
     const unsub = onSnapshot(collection(db, "customer-reviews"), (snapshot) => {
-      const fbReviews = snapshot.docs.map(docRef => {
-        const data = docRef.data() as CustomerReview;
-        const nameL = (data.name || '').toLowerCase();
-        const feedbackL = (data.feedback || '').toLowerCase();
-        
-        // Auto-purge any test logs and test variants from Firestore storage
-        const isTest = nameL.includes('test') || feedbackL.includes('test') || 
-                       nameL.includes('demo') || feedbackL.includes('demo') ||
-                       nameL.includes('checking') || feedbackL.includes('checking') ||
-                       nameL.includes('kunal') || nameL.includes('admin') || 
-                       nameL === 'hello' || nameL === 'abc' || nameL === 'asd' ||
-                       feedbackL.includes('fake') || feedbackL.includes('dummy');
+      const fbReviews = snapshot.docs.map(docRef => docRef.data() as CustomerReview);
 
-        if (isTest) {
-          deleteDoc(docRef.ref).catch((err: any) => console.error("Auto-delete failed: ", err));
-        }
-        return data;
-      });
-
-      // Pure filter on localized state for pristine security
-      const filtered = fbReviews.filter(r => {
-        const nameL = (r.name || '').toLowerCase();
-        const feedbackL = (r.feedback || '').toLowerCase();
-        const isTest = nameL.includes('test') || feedbackL.includes('test') || 
-                       nameL.includes('demo') || feedbackL.includes('demo') ||
-                       nameL.includes('checking') || feedbackL.includes('checking') ||
-                       nameL.includes('kunal') || nameL.includes('admin') || 
-                       nameL === 'hello' || nameL === 'abc' || nameL === 'asd' ||
-                       feedbackL.includes('fake') || feedbackL.includes('dummy');
-        return !isTest && r.name.trim().length > 0;
-      });
+      // Filter only empty names to ensure data integrity
+      const filtered = fbReviews.filter(r => r.name && r.name.trim().length > 0);
 
       // Sort newest first
       const sorted = filtered.sort((a, b) => b.timestamp - a.timestamp);

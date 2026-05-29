@@ -223,7 +223,7 @@ export default function Home() {
           </h2>
           {/* Details Description in Bricolage Grotesque */}
           <p className="text-stone-600 text-sm md:text-base leading-relaxed font-bricolage font-normal max-w-3xl mx-auto">
-            Elevate your home with <span className="whitespace-nowrap text-brand-wood font-bold">VK DOOR</span>, India’s leading luxury wooden door manufacturer. We combine precision machinery with meticulous craftsmanship to create exquisite, custom-made doors that blend artistry and innovation seamlessly. From pre-hung convenience to solid security, <span className="whitespace-nowrap">VK DOOR</span> offers an unparalleled selection of high-lasting doors crafted exclusively for discerning homeowners.
+            Bring your dream interiors to life with bespoke <span className="whitespace-nowrap text-brand-wood font-semibold">Wooden Doors, Windows, Frames & Mouldings</span>, customized to match your architecture. Contact us today to explore our premium timbers, or easily submit your requirements through the form below to get a specialized consultation.
           </p>
         </div>
       </section>

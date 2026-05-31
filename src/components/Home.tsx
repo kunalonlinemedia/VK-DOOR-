@@ -221,10 +221,15 @@ export default function Home() {
           <h2 className="font-bricolage text-2xl sm:text-3xl md:text-4xl font-black tracking-tight uppercase leading-tight animate-black-brown">
             LEADING WOODEN DOOR MANUFACTURER FROM INDIA
           </h2>
-          {/* Details Description in Bricolage Grotesque */}
-          <p className="text-stone-600 text-sm md:text-base leading-relaxed font-bricolage font-normal max-w-3xl mx-auto">
-            Bring your dream interiors to life with bespoke <span className="whitespace-nowrap text-brand-wood font-semibold">Wooden Doors, Windows, Frames & Mouldings</span>, customized to match your architecture. Contact us today to explore our premium timbers, or easily submit your requirements through the form below to get a specialized consultation.
-          </p>
+          {/* Details Description in Bricolage Grotesque - with centered, smaller product names */}
+          <div className="flex flex-col items-center space-y-4">
+            <span className="text-brand-wood font-bricolage font-bold text-xs sm:text-sm uppercase tracking-[0.2em] block text-center px-5 py-2 border border-brand-wood/20 rounded-full bg-brand-light/35 shadow-xs">
+              Wooden Doors • Windows • Frames • Mouldings
+            </span>
+            <p className="text-stone-600 text-sm md:text-base leading-relaxed font-bricolage font-normal max-w-3xl mx-auto">
+              Bring your dream interiors to life with bespoke designs customized to match your architecture. Contact us today to explore our premium timbers, or easily submit your requirements through the form below to get a specialized consultation.
+            </p>
+          </div>
         </div>
       </section>
 
@@ -452,8 +457,8 @@ export default function Home() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Card 1 (Doors) */}
-          <div className="bg-white rounded-[2rem] border border-brand-border/50 p-8 md:p-10 space-y-6 hover:shadow-lg transition-shadow">
-            <div className="w-12 h-12 rounded-2xl bg-brand-light flex items-center justify-center text-brand-wood shadow-inner">
+          <div className="bg-white rounded-[2rem] border border-brand-border/50 p-8 md:p-10 space-y-6 hover:shadow-lg transition-shadow flex flex-col items-center text-center">
+            <div className="w-12 h-12 rounded-2xl bg-brand-light flex items-center justify-center text-brand-wood shadow-inner mx-auto">
               <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                 <rect x="5" y="3" width="14" height="18" rx="1" />
                 <rect x="7" y="5" width="4" height="6" rx="0.5" />
@@ -464,14 +469,14 @@ export default function Home() {
               </svg>
             </div>
             <div className="space-y-2">
-              <h3 className="text-xl font-bold text-brand-dark">Wooden Doors</h3>
-              <p className="text-sm text-stone-500 leading-relaxed font-normal">Custom main entrance double doors, modern modular panel models, and high-security solid interior panels.</p>
+              <h3 className="text-lg font-bold text-brand-dark">Wooden Doors</h3>
+              <p className="text-xs sm:text-sm text-stone-500 leading-relaxed font-normal">Custom main entrance double doors, modern modular panel models, and high-security solid interior panels.</p>
             </div>
           </div>
 
           {/* Card 2 (Windows) */}
-          <div className="bg-white rounded-[2rem] border border-brand-border/50 p-8 md:p-10 space-y-6 hover:shadow-lg transition-shadow">
-            <div className="w-12 h-12 rounded-2xl bg-brand-light flex items-center justify-center text-brand-wood shadow-inner">
+          <div className="bg-white rounded-[2rem] border border-brand-border/50 p-8 md:p-10 space-y-6 hover:shadow-lg transition-shadow flex flex-col items-center text-center">
+            <div className="w-12 h-12 rounded-2xl bg-brand-light flex items-center justify-center text-brand-wood shadow-inner mx-auto">
               <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                 <rect x="4" y="4" width="16" height="16" rx="1" />
                 <line x1="12" y1="4" x2="12" y2="20" />
@@ -483,14 +488,14 @@ export default function Home() {
               </svg>
             </div>
             <div className="space-y-2">
-              <h3 className="text-xl font-bold text-brand-dark">Wooden Windows</h3>
-              <p className="text-sm text-stone-500 leading-relaxed font-normal">French windows, heavy-duty sliding casements, and vintage glass pane framing options.</p>
+              <h3 className="text-lg font-bold text-brand-dark">Wooden Windows</h3>
+              <p className="text-xs sm:text-sm text-stone-500 leading-relaxed font-normal">French windows, heavy-duty sliding casements, and vintage glass pane framing options.</p>
             </div>
           </div>
 
           {/* Card 3 (Mouldings) */}
-          <div className="bg-white rounded-[2rem] border border-brand-border/50 p-8 md:p-10 space-y-6 hover:shadow-lg transition-shadow">
-            <div className="w-12 h-12 rounded-2xl bg-brand-light flex items-center justify-center text-brand-wood shadow-inner">
+          <div className="bg-white rounded-[2rem] border border-brand-border/50 p-8 md:p-10 space-y-6 hover:shadow-lg transition-shadow flex flex-col items-center text-center">
+            <div className="w-12 h-12 rounded-2xl bg-brand-light flex items-center justify-center text-brand-wood shadow-inner mx-auto">
               <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                 <path d="M4 20h16M6 17h12M8 14h8M10 11h4" strokeLinecap="round" />
                 <path d="M4 4h16v16H4V4z" opacity="0.25" />
@@ -499,8 +504,8 @@ export default function Home() {
               </svg>
             </div>
             <div className="space-y-2">
-              <h3 className="text-xl font-bold text-brand-dark">Frames, Mouldings & Chaukhats</h3>
-              <p className="text-sm text-stone-500 leading-relaxed font-normal">High-precision door/window framing chaukhats, modern designer architraves, skirtings, and decorative trim profiles.</p>
+              <h3 className="text-lg font-bold text-brand-dark">Frames, Mouldings & Chaukhats</h3>
+              <p className="text-xs sm:text-sm text-stone-500 leading-relaxed font-normal">High-precision door/window framing chaukhats, modern designer architraves, skirtings, and decorative trim profiles.</p>
             </div>
           </div>
         </div>

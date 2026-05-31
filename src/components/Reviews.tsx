@@ -15,7 +15,9 @@ import {
   BarChart3,
   Image as ImageIcon,
   Home,
-  Trash2
+  Trash2,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 export interface CustomerReview {
@@ -77,6 +79,8 @@ const compressImageToHD = (file: File): Promise<string> => {
 export default function Reviews() {
   const [reviewsList, setReviewsList] = useState<CustomerReview[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isShareOpen, setIsShareOpen] = useState<boolean>(false);
+  const [isRatingOpen, setIsRatingOpen] = useState<boolean>(false);
 
   // Form states
   const [customerName, setCustomerName] = useState<string>('');
@@ -309,229 +313,270 @@ export default function Reviews() {
             {/* Elegant Top Border Line */}
             <div className="absolute top-0 left-0 w-full h-1 bg-black" />
             
-            <div className="space-y-1 pb-1">
-              <h2 className="text-2xl font-black text-neutral-900 flex items-center gap-2">
-                <Camera className="w-5 h-5 text-black" /> Share Installation
-              </h2>
-              <p className="text-xs text-stone-400 font-sans">
-                Once doors are lag-fitted at your home, capture, rate, and press Publish!
-              </p>
+            <div 
+              className="flex justify-between items-center cursor-pointer select-none pb-2 border-b border-stone-100"
+              onClick={() => setIsShareOpen(!isShareOpen)}
+            >
+              <div className="space-y-1">
+                <h2 className="text-xl md:text-2xl font-black text-neutral-900 flex items-center gap-2">
+                  <Camera className="w-5 h-5 text-black" /> Share Installation
+                </h2>
+                <p className="text-xs text-stone-400 font-sans">
+                  Once doors are lag-fitted at your home, capture, rate, and press Publish!
+                </p>
+              </div>
+              <div className="flex-shrink-0 ml-4 flex items-center justify-center w-8 h-8 rounded-full bg-neutral-100 text-black hover:bg-neutral-200 transition-colors">
+                {isShareOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </div>
             </div>
 
-            <AnimatePresence mode="wait">
-              {formSuccess ? (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="bg-neutral-50 border border-neutral-900/10 rounded-2xl p-6 text-center space-y-4 py-10"
+            {/* Center Area Action Button */}
+            <div className="flex flex-col items-center justify-center">
+              <button
+                type="button"
+                onClick={() => setIsShareOpen(!isShareOpen)}
+                className="flex items-center justify-center gap-2 px-4 py-1.5 rounded-full border border-neutral-200 hover:border-black text-xs font-bold text-stone-600 hover:text-black bg-stone-50 hover:bg-white shadow-xs transition-all active:scale-95 cursor-pointer"
+              >
+                {isShareOpen ? (
+                  <>
+                    <span>Close Form</span>
+                    <ChevronUp className="w-4 h-4" />
+                  </>
+                ) : (
+                  <>
+                    <span>Open Form</span>
+                    <ChevronDown className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </div>
+
+            <AnimatePresence initial={false}>
+              {isShareOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="overflow-hidden space-y-6"
                 >
-                  <div className="w-14 h-14 bg-black text-white rounded-full flex items-center justify-center mx-auto">
-                    <CheckCircle className="w-8 h-8 text-white" />
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="font-bold text-neutral-900 text-lg">Upload Successful!</h3>
-                    <p className="text-stone-500 text-xs font-sans px-2 leading-relaxed">
-                      Thank you for joining the VK DOOR family of happy homeowners! Your custom door is now live inside our public portfolio gallery.
-                    </p>
-                  </div>
-                  <button 
-                    onClick={() => setFormSuccess(false)}
-                    className="text-xs font-bold font-sans text-white bg-black px-5 py-2.5 rounded-xl hover:bg-neutral-800 transition-all active:scale-95"
-                  >
-                    Publish Another Photo
-                  </button>
-                </motion.div>
-              ) : (
-                <form onSubmit={handleSubmitReview} className="space-y-5">
-                  
-                  {/* Name field */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-black text-stone-800 uppercase tracking-widest flex items-center gap-1.5">
-                      <User className="w-4 h-4 text-black" /> Your Full Name <span className="text-stone-400 font-normal">*</span>
-                    </label>
-                    <input 
-                      type="text" 
-                      required
-                      placeholder="e.g., Rajesh Kumar"
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      className="w-full text-xs font-sans px-4 py-3 rounded-xl border border-neutral-900/10 bg-stone-50 hover:border-black focus:border-black focus:outline-none focus:ring-1 focus:ring-black transition-colors"
-                    />
-                  </div>
-
-                  {/* 5-Star Rating Selector */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-stone-800 uppercase tracking-widest block">
-                      Star Rating
-                    </label>
-                    <div className="bg-stone-50 border border-neutral-900/10 p-5 rounded-2xl flex flex-col items-center justify-center space-y-3">
-                      <div className="flex gap-2">
-                        {[1, 2, 3, 4, 5].map((starVal) => {
-                          const isActive = starVal <= selectedRating;
-                          return (
-                            <button
-                              type="button"
-                              key={starVal}
-                              onClick={() => setSelectedRating(starVal)}
-                              className="focus:outline-none transition-transform active:scale-125 hover:scale-110"
-                            >
-                              <Star 
-                                className={`w-8 h-8 transition-colors ${
-                                  isActive 
-                                    ? 'fill-amber-500 text-amber-500 drop-shadow-[0_2px_4px_rgba(245,158,11,0.2)]' 
-                                    : 'text-stone-300 hover:text-amber-400/50'
-                                }`} 
-                              />
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <span className="text-xs font-black text-black tracking-wide uppercase">
-                        {selectedRating === 5 && "⭐⭐⭐⭐⭐ Gold Standard (5/5)"}
-                        {selectedRating === 4 && "⭐⭐⭐⭐ Very Good Satisfaction (4/5)"}
-                        {selectedRating === 3 && "⭐⭐⭐ Standard Quality (3/5)"}
-                        {selectedRating === 2 && "⭐⭐ Average Fitting (2/5)"}
-                        {selectedRating === 1 && "⭐ Needs Improvement (1/5)"}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Image collector block */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-black text-stone-800 uppercase tracking-widest flex items-center gap-1.5">
-                      <Camera className="w-4 h-4 text-black" /> Door Installation Photo <span className="text-stone-400 font-normal">*</span>
-                    </label>
-
-                    {/* Hidden Native File Inputs */}
-                    <input 
-                      type="file" 
-                      ref={fileInputRef}
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleFileChange}
-                    />
-                    <input 
-                      type="file" 
-                      ref={cameraInputRef}
-                      accept="image/*"
-                      capture="environment"
-                      className="hidden"
-                      onChange={handleFileChange}
-                    />
-
-                    {uploadedBase64 ? (
-                      <div className="relative rounded-2xl overflow-hidden border border-black bg-stone-900 group aspect-video">
-                        <img 
-                          src={uploadedBase64} 
-                          alt="VK Door Pre-upload"
-                          className="w-full h-full object-cover opacity-90 transition-transform group-hover:scale-105"
-                          referrerPolicy="no-referrer"
-                        />
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            type="button"
-                            onClick={() => setUploadedBase64('')}
-                            className="bg-black hover:bg-neutral-900 text-white rounded-full p-2.5 shadow-lg active:scale-90 transition-transform flex items-center justify-center border border-white/20"
-                            title="Remove Photo"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div 
-                        onDragOver={handleDragOver}
-                        onDragLeave={handleDragLeave}
-                        onDrop={handleDrop}
-                        className={`border border-dashed rounded-2xl p-5 text-center transition-all ${
-                          dragActive 
-                            ? 'border-black bg-neutral-50 scale-[1.01]' 
-                            : 'border-stone-200 hover:border-black/55 bg-stone-50/50'
-                        }`}
+                  <AnimatePresence mode="wait">
+                    {formSuccess ? (
+                      <motion.div 
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="bg-neutral-50 border border-neutral-900/10 rounded-2xl p-6 text-center space-y-4 py-10"
                       >
-                        <div className="flex flex-col items-center justify-center space-y-3">
-                          <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center text-black">
-                            <Upload className="w-5 h-5 text-black" />
-                          </div>
-                          
-                          <div className="space-y-1 block">
-                            <p className="text-[11px] font-bold text-stone-700">
-                              Drag snapshot here, or choose source
-                            </p>
-                            <p className="text-[9px] text-stone-400 font-sans uppercase tracking-wider">
-                              Supports raw JPEG/PNG • Auto-optimized to HD WebP
-                            </p>
-                          </div>
+                        <div className="w-14 h-14 bg-black text-white rounded-full flex items-center justify-center mx-auto">
+                          <CheckCircle className="w-8 h-8 text-white" />
+                        </div>
+                        <div className="space-y-1">
+                          <h3 className="font-bold text-neutral-900 text-lg">Upload Successful!</h3>
+                          <p className="text-stone-500 text-xs font-sans px-2 leading-relaxed">
+                            Thank you for joining the VK DOOR family of happy homeowners! Your custom door is now live inside our public portfolio gallery.
+                          </p>
+                        </div>
+                        <button 
+                          onClick={() => setFormSuccess(false)}
+                          className="text-xs font-bold font-sans text-white bg-black px-5 py-2.5 rounded-xl hover:bg-neutral-800 transition-all active:scale-95"
+                        >
+                          Publish Another Photo
+                        </button>
+                      </motion.div>
+                    ) : (
+                      <form onSubmit={handleSubmitReview} className="space-y-5">
+                        
+                        {/* Name field */}
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-black text-stone-800 uppercase tracking-widest flex items-center gap-1.5 flex-wrap">
+                            <User className="w-4 h-4 text-black" /> Your Full Name <span className="text-stone-400 font-normal">*</span>
+                          </label>
+                          <input 
+                            type="text" 
+                            required
+                            placeholder="e.g., Rajesh Kumar"
+                            value={customerName}
+                            onChange={(e) => setCustomerName(e.target.value)}
+                            className="w-full text-xs font-sans px-4 py-3 rounded-xl border border-neutral-900/10 bg-stone-50 hover:border-black focus:border-black focus:outline-none focus:ring-1 focus:ring-black transition-colors"
+                          />
+                        </div>
 
-                          <div className="grid grid-cols-2 gap-2.5 w-full pt-1.5">
-                            <button
-                              type="button"
-                              onClick={() => fileInputRef.current?.click()}
-                              className="bg-white hover:bg-stone-50 text-black border border-stone-200 rounded-xl py-2 px-1 text-[10px] font-bold flex items-center justify-center gap-1 transition-all active:scale-95 shadow-xs"
-                            >
-                              <ImageIcon className="w-3.5 h-3.5 text-black" /> Browse File
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => cameraInputRef.current?.click()}
-                              className="bg-black hover:bg-neutral-800 text-white rounded-xl py-2 px-1 text-[10px] font-bold flex items-center justify-center gap-1 transition-all active:scale-95 shadow-xs"
-                            >
-                              <Camera className="w-3.5 h-3.5 text-white" /> Click Photo
-                            </button>
+                        {/* 5-Star Rating Selector */}
+                        <div className="space-y-2">
+                          <label className="text-xs font-black text-stone-800 uppercase tracking-widest block">
+                            Star Rating
+                          </label>
+                          <div className="bg-stone-50 border border-neutral-900/10 p-5 rounded-2xl flex flex-col items-center justify-center space-y-3">
+                            <div className="flex gap-2">
+                              {[1, 2, 3, 4, 5].map((starVal) => {
+                                const isActive = starVal <= selectedRating;
+                                return (
+                                  <button
+                                    type="button"
+                                    key={starVal}
+                                    onClick={() => setSelectedRating(starVal)}
+                                    className="focus:outline-none transition-transform active:scale-125 hover:scale-110"
+                                  >
+                                    <Star 
+                                      className={`w-8 h-8 transition-colors ${
+                                        isActive 
+                                          ? 'fill-amber-500 text-amber-500 drop-shadow-[0_2px_4px_rgba(245,158,11,0.2)]' 
+                                          : 'text-stone-300 hover:text-amber-400/50'
+                                      }`} 
+                                    />
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <span className="text-[11px] font-black text-black tracking-wide uppercase text-center">
+                              {selectedRating === 5 && "⭐⭐⭐⭐⭐ Gold Standard (5/5)"}
+                              {selectedRating === 4 && "⭐⭐⭐⭐ Very Good Satisfaction (4/5)"}
+                              {selectedRating === 3 && "⭐⭐⭐ Standard Quality (3/5)"}
+                              {selectedRating === 2 && "⭐⭐ Average Fitting (2/5)"}
+                              {selectedRating === 1 && "⭐ Needs Improvement (1/5)"}
+                            </span>
                           </div>
                         </div>
-                      </div>
+
+                        {/* Image collector block */}
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-black text-stone-800 uppercase tracking-widest flex items-center gap-1.5 flex-wrap">
+                            <Camera className="w-4 h-4 text-black" /> Door Installation Photo <span className="text-stone-400 font-normal">*</span>
+                          </label>
+
+                          {/* Hidden Native File Inputs */}
+                          <input 
+                            type="file" 
+                            ref={fileInputRef}
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleFileChange}
+                          />
+                          <input 
+                            type="file" 
+                            ref={cameraInputRef}
+                            accept="image/*"
+                            capture="environment"
+                            className="hidden"
+                            onChange={handleFileChange}
+                          />
+
+                          {uploadedBase64 ? (
+                            <div className="relative rounded-2xl overflow-hidden border border-black bg-stone-900 group aspect-video">
+                              <img 
+                                src={uploadedBase64} 
+                                alt="VK Door Pre-upload"
+                                className="w-full h-full object-cover opacity-90 transition-transform group-hover:scale-105"
+                                referrerPolicy="no-referrer"
+                              />
+                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  type="button"
+                                  onClick={() => setUploadedBase64('')}
+                                  className="bg-black hover:bg-neutral-900 text-white rounded-full p-2.5 shadow-lg active:scale-90 transition-transform flex items-center justify-center border border-white/20"
+                                  title="Remove Photo"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div 
+                              onDragOver={handleDragOver}
+                              onDragLeave={handleDragLeave}
+                              onDrop={handleDrop}
+                              className={`border border-dashed rounded-2xl p-5 text-center transition-all ${
+                                dragActive 
+                                  ? 'border-black bg-neutral-50 scale-[1.01]' 
+                                  : 'border-stone-200 hover:border-black/55 bg-stone-50/50'
+                              }`}
+                            >
+                              <div className="flex flex-col items-center justify-center space-y-3">
+                                <div className="w-10 h-10 rounded-full bg-neutral-100 flex items-center justify-center text-black">
+                                  <Upload className="w-5 h-5 text-black" />
+                                </div>
+                                
+                                <div className="space-y-1 block">
+                                  <p className="text-[11px] font-bold text-stone-700">
+                                    Drag snapshot here, or choose source
+                                  </p>
+                                  <p className="text-[9px] text-stone-400 font-sans uppercase tracking-wider">
+                                    Supports raw JPEG/PNG • Auto-optimized to HD WebP
+                                  </p>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2.5 w-full pt-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="bg-white hover:bg-stone-50 text-black border border-stone-200 rounded-xl py-2 px-1 text-[10px] font-bold flex items-center justify-center gap-1 transition-all active:scale-95 shadow-xs cursor-pointer"
+                                  >
+                                    <ImageIcon className="w-3.5 h-3.5 text-black" /> Browse File
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => cameraInputRef.current?.click()}
+                                    className="bg-black hover:bg-neutral-800 text-white rounded-xl py-2 px-1 text-[10px] font-bold flex items-center justify-center gap-1 transition-all active:scale-95 shadow-xs cursor-pointer"
+                                  >
+                                    <Camera className="w-3.5 h-3.5 text-white" /> Click Photo
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Feedback Message */}
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-black text-stone-800 uppercase tracking-widest flex items-center gap-1.5">
+                            <MessageSquare className="w-4 h-4 text-black" /> Your Feedback / Review <span className="text-stone-400 font-normal">*</span>
+                          </label>
+                          <textarea 
+                            required
+                            rows={3}
+                            value={feedbackText}
+                            onChange={(e) => setFeedbackText(e.target.value)}
+                            placeholder="How is the wood quality, custom carving, premium finish, or carpentry fitting?"
+                            className="w-full text-xs font-sans px-4 py-3 rounded-xl border border-neutral-900/10 bg-stone-50 hover:border-black focus:border-black focus:outline-none focus:ring-1 focus:ring-black transition-colors resize-none"
+                          />
+                        </div>
+
+                        {errorMessage && (
+                          <p className="text-[11px] font-sans font-bold text-red-600 bg-red-50 border border-red-100 p-2.5 rounded-xl">
+                            {errorMessage}
+                          </p>
+                        )}
+
+                        {/* Submit done button */}
+                        <button
+                          type="submit"
+                          disabled={isSubmitting}
+                          className={`w-full py-3 px-6 rounded-xl font-bold text-xs uppercase tracking-widest text-white transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-2 cursor-pointer ${
+                            isSubmitting 
+                              ? 'bg-stone-400 cursor-not-allowed' 
+                              : 'bg-black hover:bg-neutral-800'
+                          }`}
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin" />
+                              Uploading...
+                            </>
+                          ) : (
+                            <>
+                              Publish
+                            </>
+                          )}
+                        </button>
+
+                        <p className="text-[9px] text-stone-400 font-sans text-center">
+                          Secured submissions linked instantly to the public VK DOOR portfolio log.
+                        </p>
+                      </form>
                     )}
-                  </div>
-
-                  {/* Feedback Message */}
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-black text-stone-800 uppercase tracking-widest flex items-center gap-1.5">
-                      <MessageSquare className="w-4 h-4 text-black" /> Your Feedback / Review <span className="text-stone-400 font-normal">*</span>
-                    </label>
-                    <textarea 
-                      required
-                      rows={3}
-                      value={feedbackText}
-                      onChange={(e) => setFeedbackText(e.target.value)}
-                      placeholder="How is the wood quality, custom carving, premium finish, or carpentry fitting?"
-                      className="w-full text-xs font-sans px-4 py-3 rounded-xl border border-neutral-900/10 bg-stone-50 hover:border-black focus:border-black focus:outline-none focus:ring-1 focus:ring-black transition-colors resize-none"
-                    />
-                  </div>
-
-                  {errorMessage && (
-                    <p className="text-[11px] font-sans font-bold text-red-600 bg-red-50 border border-red-100 p-2.5 rounded-xl">
-                      {errorMessage}
-                    </p>
-                  )}
-
-                  {/* Submit done button */}
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className={`w-full py-3 px-6 rounded-xl font-bold text-xs uppercase tracking-widest text-white transition-all active:scale-[0.98] shadow-sm flex items-center justify-center gap-2 ${
-                      isSubmitting 
-                        ? 'bg-stone-400 cursor-not-allowed' 
-                        : 'bg-black hover:bg-neutral-800'
-                    }`}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin" />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        Publish
-                      </>
-                    )}
-                  </button>
-
-                  <p className="text-[9px] text-stone-400 font-sans text-center">
-                    Secured submissions linked instantly to the public VK DOOR portfolio log.
-                  </p>
-                </form>
+                  </AnimatePresence>
+                </motion.div>
               )}
             </AnimatePresence>
           </div>
@@ -541,8 +586,11 @@ export default function Reviews() {
         <div className="lg:col-span-7 space-y-8">
           
           {/* STATS ANALYTICS VISUAL CORNER */}
-          <div className="bg-stone-50 rounded-[2rem] border border-neutral-900/10 p-6 md:p-8 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-stone-200">
+          <div className="bg-stone-50 rounded-[2rem] border border-neutral-900/10 p-6 md:p-8 space-y-4">
+            <div 
+              className="flex justify-between items-center cursor-pointer select-none pb-2 border-b border-stone-100"
+              onClick={() => setIsRatingOpen(!isRatingOpen)}
+            >
               <div className="space-y-1">
                 <h2 className="text-xl font-black text-black flex items-center gap-2">
                   <BarChart3 className="w-5 h-5 text-black" /> Live Rating Metrics
@@ -552,48 +600,91 @@ export default function Reviews() {
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <p className="text-2xl font-black text-neutral-900 leading-none">{averageRating}</p>
-                  <p className="text-[9px] font-sans font-bold text-stone-400 uppercase tracking-widest pt-0.5">Avg Score</p>
+                <div className="text-right hidden sm:block">
+                  <p className="text-lg font-black text-neutral-900 leading-none">{averageRating} ★</p>
+                  <p className="text-[9px] text-stone-400 font-bold uppercase tracking-widest pt-0.5">{totalReviews} Reviews</p>
                 </div>
-                <div className="flex flex-col gap-0.5">
-                  <div className="flex text-black">
-                    {[1,2,3,4,5].map((s) => (
-                      <Star key={s} className="w-3.5 h-3.5 fill-black text-black" />
-                    ))}
-                  </div>
-                  <p className="text-[10px] text-[#222] font-sans font-bold leading-normal">
-                    {totalReviews} Verified Customer Reviews
-                  </p>
+                <div className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-stone-200/50 text-black hover:bg-neutral-200 transition-colors">
+                  {isRatingOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </div>
               </div>
             </div>
 
-            {/* Premium Progress Distribution Bars */}
-            <div className="space-y-3 font-sans">
-              {[5, 4, 3, 2, 1].map((stars) => {
-                const count = ratingSpread[stars as keyof typeof ratingSpread] || 0;
-                const percentage = totalReviews > 0 ? (count / totalReviews) * 100 : 0;
-                return (
-                  <div key={stars} className="grid grid-cols-12 items-center gap-3">
-                    <span className="col-span-2 text-xs font-bold text-stone-600 whitespace-nowrap flex items-center gap-1 justify-end">
-                      {stars} <Star className="w-3 h-3 fill-black text-black" />
-                    </span>
-                    <div className="col-span-8 h-2.5 bg-stone-200/50 rounded-full overflow-hidden relative">
-                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${percentage}%` }}
-                        transition={{ duration: 0.8, ease: "easeOut" }}
-                        className="h-full rounded-full bg-black"
-                      />
-                    </div>
-                    <span className="col-span-2 text-[10px] font-semibold text-stone-600">
-                      {count} {count === 1 ? 'review' : 'reviews'} ({Math.round(percentage)}%)
-                    </span>
-                  </div>
-                );
-              })}
+            {/* Center Area Action Button */}
+            <div className="flex flex-col items-center justify-center">
+              <button
+                type="button"
+                onClick={() => setIsRatingOpen(!isRatingOpen)}
+                className="flex items-center justify-center gap-2 px-4 py-1.5 rounded-full border border-stone-200 hover:border-black text-xs font-bold text-stone-600 hover:text-black bg-stone-100/50 hover:bg-white shadow-xs transition-all active:scale-95 cursor-pointer"
+              >
+                {isRatingOpen ? (
+                  <>
+                    <span>Hide Metrics</span>
+                    <ChevronUp className="w-4 h-4" />
+                  </>
+                ) : (
+                  <>
+                    <span>Show Metrics</span>
+                    <ChevronDown className="w-4 h-4" />
+                  </>
+                )}
+              </button>
             </div>
+
+            <AnimatePresence initial={false}>
+              {isRatingOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="overflow-hidden space-y-6 pt-4"
+                >
+                  <div className="flex items-center gap-3 pb-4 border-b border-stone-200 bg-stone-100/40 p-4 rounded-xl">
+                    <div className="text-right">
+                      <p className="text-3xl font-black text-neutral-900 leading-none">{averageRating}</p>
+                      <p className="text-[9px] font-sans font-bold text-stone-400 uppercase tracking-widest pt-1">Avg Score</p>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex text-black">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star key={s} className="w-3.5 h-3.5 fill-black text-black" />
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-[#222] font-sans font-bold leading-none">
+                        {totalReviews} Verified Customer Reviews
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Premium Progress Distribution Bars */}
+                  <div className="space-y-3 font-sans">
+                    {[5, 4, 3, 2, 1].map((stars) => {
+                      const count = ratingSpread[stars as keyof typeof ratingSpread] || 0;
+                      const percentage = totalReviews > 0 ? (count / totalReviews) * 100 : 0;
+                      return (
+                        <div key={stars} className="grid grid-cols-12 items-center gap-3">
+                          <span className="col-span-2 text-xs font-bold text-stone-600 whitespace-nowrap flex items-center gap-1 justify-end">
+                            {stars} <Star className="w-3 h-3 fill-black text-black" />
+                          </span>
+                          <div className="col-span-8 h-2.5 bg-stone-200/50 rounded-full overflow-hidden relative">
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              animate={{ width: `${percentage}%` }}
+                              transition={{ duration: 0.8, ease: "easeOut" }}
+                              className="h-full rounded-full bg-black"
+                            />
+                          </div>
+                          <span className="col-span-2 text-[10px] font-semibold text-stone-600">
+                            {count} {count === 1 ? 'review' : 'reviews'} ({Math.round(percentage)}%)
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* ACTIVE REVIEWS HD GALLERY LIST */}
